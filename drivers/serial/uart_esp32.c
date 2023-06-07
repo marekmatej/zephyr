@@ -25,6 +25,9 @@
 #include <esp32c3/rom/ets_sys.h>
 #include <esp32c3/rom/gpio.h>
 #include <zephyr/dt-bindings/clock/esp32c3_clock.h>
+#elif defined(CONFIG_SOC_SERIES_ESP32C6)
+#include <esp32c6/rom/ets_sys.h>
+#include <esp32c6/rom/gpio.h>
 #endif
 #ifdef CONFIG_UART_ASYNC_API
 #include <zephyr/drivers/dma.h>
@@ -255,7 +258,7 @@ static int uart_esp32_configure(const struct device *dev, const struct uart_conf
 
 	clock_control_on(config->clock_dev, config->clock_subsys);
 
-	uart_hal_set_sclk(&data->hal, UART_SCLK_APB);
+	uart_hal_set_sclk(&data->hal, UART_SCLK_DEFAULT);
 	uart_hal_set_rxfifo_full_thr(&data->hal, UART_RX_FIFO_THRESH);
 	uart_hal_set_txfifo_empty_thr(&data->hal, UART_TX_FIFO_THRESH);
 	uart_hal_rxfifo_rst(&data->hal);

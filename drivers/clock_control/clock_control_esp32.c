@@ -33,6 +33,14 @@
 #include <soc/soc_caps.h>
 #include <soc/soc.h>
 #include <soc/rtc.h>
+#elif CONFIG_SOC_SERIES_ESP32C6
+#define DT_CPU_COMPAT espressif_riscv
+#include <zephyr/dt-bindings/clock/esp32c6_clock.h>
+#include <esp32c6/rom/rtc.h>
+#include <soc/soc_caps.h>
+#include <soc/soc.h>
+#include <soc/rtc.h>
+#include <soc/dport_access.h>
 #endif /* CONFIG_SOC_SERIES_ESP32xx */
 
 #include <esp_rom_caps.h>
@@ -40,7 +48,6 @@
 #include <esp_rom_uart.h>
 #include <soc/rtc.h>
 #include <soc/i2s_reg.h>
-#include <soc/apb_ctrl_reg.h>
 #include <soc/timer_group_reg.h>
 #include <hal/clk_gate_ll.h>
 #include <soc.h>
@@ -511,6 +518,20 @@ static void esp32_clock_perip_init(void)
 	periph_module_enable(PERIPH_RNG_MODULE);
 }
 #endif /* CONFIG_SOC_SERIES_ESP32C3 */
+
+#if defined(CONFIG_SOC_SERIES_ESP32C6)
+static void esp32_clock_perip_init(void)
+{
+	/* Enable TimerGroup 0 clock to ensure its reference counter will never
+	 * be decremented to 0 during normal operation and preventing it from
+	 * being disabled.
+	 * If the TimerGroup 0 clock is disabled and then reenabled, the watchdog
+	 * registers (Flashboot protection included) will be reenabled, and some
+	 * seconds later, will trigger an unintended reset.
+	 */
+	periph_module_enable(PERIPH_TIMG0_MODULE);
+}
+#endif
 
 static int clock_control_esp32_init(const struct device *dev)
 {

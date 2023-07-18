@@ -1,0 +1,6 @@
+board:
+  name: esp32_uwb
+  full_name: ESP32-DW1000-UWB
+  vendor: others
+  socs:
+  - name: esp32

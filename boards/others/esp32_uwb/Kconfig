@@ -1,0 +1,7 @@
+# Copyright (c) 2025 Marek Matej 
+# SPDX-License-Identifier: Apache-2.0
+
+config HEAP_MEM_POOL_ADD_SIZE_BOARD
+	int
+	default 4096 if BOARD_ESP32_UWB_ESP32_PROCPU
+	default 1024 if BOARD_ESP32_UWB_ESP32_APPCPU

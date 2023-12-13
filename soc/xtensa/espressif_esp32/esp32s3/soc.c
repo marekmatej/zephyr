@@ -142,12 +142,7 @@ void IRAM_ATTR __esp_platform_start(void)
 	 */
 	__asm__ __volatile__("wsr.MISC0 %0; rsync" : : "r"(&_kernel.cpus[0]));
 
-#ifdef CONFIG_MCUBOOT
-	/* MCUboot early initialisation. */
-	if (bootloader_init()) {
-		abort();
-	}
-#else
+#ifndef CONFIG_MCUBOOT
 	/* Configure the mode of instruction cache : cache size, cache line size. */
 	esp_config_instruction_cache_mode();
 
@@ -188,6 +183,7 @@ void IRAM_ATTR __esp_platform_start(void)
 	       (&_ext_ram_bss_end - &_ext_ram_bss_start) * sizeof(_ext_ram_bss_start));
 
 #endif /* CONFIG_ESP_SPIRAM */
+
 	/* Apply SoC patches */
 	esp_errata();
 
@@ -215,7 +211,7 @@ void IRAM_ATTR __esp_platform_start(void)
 #if CONFIG_SOC_FLASH_ESP32
 	spi_flash_guard_set(&g_flash_guard_default_ops);
 #endif
-#endif /* CONFIG_MCUBOOT */
+#endif /* !CONFIG_MCUBOOT */
 
 	esp_intr_initialize();
 

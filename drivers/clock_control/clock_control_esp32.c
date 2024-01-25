@@ -35,6 +35,7 @@
 #include <soc/rtc.h>
 #endif /* CONFIG_SOC_SERIES_ESP32xx */
 
+#include <esp_rom_caps.h>
 #include <esp_rom_sys.h>
 #include <esp_rom_uart.h>
 #include <soc/rtc.h>

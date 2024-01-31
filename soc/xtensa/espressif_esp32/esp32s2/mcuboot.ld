@@ -50,12 +50,6 @@ ENTRY(CONFIG_KERNEL_ENTRY)
 
 SECTIONS
 {
-  /* NOTE: .rodata section should be the first section in the linker script and no
-   * other section should appear before .rodata section. This is the requirement
-   * to align ROM section to 64K page offset.
-   * Adding .rodata as first section helps to reduce size of generated binary by
-   * few kBs.
-   */
   SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
   {
     __rodata_region_start = ABSOLUTE(.);

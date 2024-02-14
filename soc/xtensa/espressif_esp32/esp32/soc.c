@@ -129,12 +129,7 @@ void __attribute__((section(".iram1"))) __esp_platform_start(void)
 
 	esp_reset_reason_init();
 
-#ifdef CONFIG_MCUBOOT
-	/* MCUboot early initialisation. */
-	if (bootloader_init()) {
-		abort();
-	}
-#else
+#ifndef CONFIG_MCUBOOT
 	/* ESP-IDF/MCUboot 2nd stage bootloader enables RTC WDT to check
 	 * on startup sequence related issues in application. Hence disable that
 	 * as we are about to start Zephyr environment.
@@ -187,7 +182,7 @@ void __attribute__((section(".iram1"))) __esp_platform_start(void)
 
 	memset(&_ext_ram_bss_start, 0,
 	       (&_ext_ram_bss_end - &_ext_ram_bss_start) * sizeof(_ext_ram_bss_start));
-#endif
+#endif /* CONFIG_ESP_SPIRAM */
 
 /* Scheduler is not started at this point. Hence, guard functions
  * must be initialized after esp_spiram_init_cache which internally
@@ -198,7 +193,7 @@ void __attribute__((section(".iram1"))) __esp_platform_start(void)
 	spi_flash_guard_set(&g_flash_guard_default_ops);
 #endif
 
-#endif /* CONFIG_MCUBOOT */
+#endif /* !CONFIG_MCUBOOT */
 
 	esp_intr_initialize();
 

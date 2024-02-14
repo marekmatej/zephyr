@@ -96,4 +96,12 @@ config BOOTLOADER_REGION_PROTECTION_ENABLE
 	  This will ensure that an exception will be triggered whenever the CPU performs a memory
 	  operation on unmapped regions of the address space.
 
+config ESP_SIMPLE_BOOT
+	bool "Simple Boot method"
+	default y if !BOOTLOADER_MCUBOOT
+	help
+	  The Simple Boot is a method of booting that doesn't depend on a
+	  2nd stage bootloader. Please note that some of the bootloader features
+	  are not available using simple boot, such secure boot and OTA.
+
 endif # SOC_FAMILY_ESP32

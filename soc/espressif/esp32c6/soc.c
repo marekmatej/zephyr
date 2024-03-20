@@ -17,6 +17,9 @@
 #include "esp_private/system_internal.h"
 #include "esp_clk_internal.h"
 #include <soc/interrupt_reg.h>
+#include <esp_private/spi_flash_os.h>
+#include "esp_private/esp_mmu_map_private.h"
+
 #include <zephyr/drivers/interrupt_controller/intc_esp32c3.h>
 
 #include <zephyr/kernel_structs.h>

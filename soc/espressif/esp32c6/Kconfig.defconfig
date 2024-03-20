@@ -11,9 +11,6 @@ config SOC_SERIES
 config NUM_IRQS
 	default 77
 
-config ESPTOOLPY_FLASHFREQ_80M
-	default y
-
 config FLASH_SIZE
 	default $(dt_node_reg_size_int,/soc/flash-controller@60002000/flash@0,0)
 

@@ -1,13 +1,17 @@
-# Copyright (c) 2023 Espressif Systems (Shanghai) Co., Ltd.
 # SPDX-License-Identifier: Apache-2.0
 
 zephyr_sources(
-  idle.c
   vectors.S
   soc_irq.S
   soc_irq.c
   soc.c
+  ../common/loader.c
   )
+
+zephyr_include_directories(.)
+
+zephyr_library_sources_ifdef(CONFIG_PM power.c)
+zephyr_library_sources_ifdef(CONFIG_POWEROFF poweroff.c)
 
 # get code-partition slot0 address
 dt_nodelabel(dts_partition_path NODELABEL "slot0_partition")
@@ -47,7 +51,7 @@ if(CONFIG_MCUBOOT OR CONFIG_BOOTLOADER_ESP_IDF)
   if(CONFIG_BUILD_OUTPUT_BIN)
     set_property(GLOBAL APPEND PROPERTY extra_post_build_commands
       COMMAND ${PYTHON_EXECUTABLE} ${ESP_IDF_PATH}/tools/esptool_py/esptool.py
-      ARGS --chip ${SOC_SERIES} elf2image --flash_mode dio --flash_freq 40m --flash_size ${esptoolpy_flashsize}MB
+      ARGS --chip esp32c6 elf2image --flash_mode dio --flash_freq 40m --flash_size ${esptoolpy_flashsize}MB
       -o ${CMAKE_BINARY_DIR}/zephyr/${CONFIG_KERNEL_BIN_NAME}.bin
       ${CMAKE_BINARY_DIR}/zephyr/${CONFIG_KERNEL_BIN_NAME}.elf)
   endif()

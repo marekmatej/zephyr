@@ -28,6 +28,7 @@
 #elif defined(CONFIG_SOC_SERIES_ESP32C6)
 #include <esp32c6/rom/ets_sys.h>
 #include <esp32c6/rom/gpio.h>
+#include <zephyr/dt-bindings/clock/esp32c6_clock.h>
 #endif
 #ifdef CONFIG_UART_ASYNC_API
 #include <zephyr/drivers/dma.h>
@@ -46,19 +47,21 @@
 #include <soc.h>
 #include <zephyr/drivers/uart.h>
 
-#ifndef CONFIG_SOC_SERIES_ESP32C3
-#include <zephyr/drivers/interrupt_controller/intc_esp32.h>
-#else
+#if defined(CONFIG_SOC_SERIES_ESP32C3) || defined(CONFIG_SOC_SERIES_ESP32C6)
 #include <zephyr/drivers/interrupt_controller/intc_esp32c3.h>
+#else
+#include <zephyr/drivers/interrupt_controller/intc_esp32.h>
 #endif
+
 #include <zephyr/drivers/clock_control.h>
 #include <errno.h>
 #include <zephyr/sys/util.h>
 #include <esp_attr.h>
 #include <zephyr/logging/log.h>
+
 LOG_MODULE_REGISTER(uart_esp32, CONFIG_UART_LOG_LEVEL);
 
-#ifdef CONFIG_SOC_SERIES_ESP32C3
+#if defined(CONFIG_SOC_SERIES_ESP32C3) || defined(CONFIG_SOC_SERIES_ESP32C6)
 #define ISR_HANDLER isr_handler_t
 #else
 #define ISR_HANDLER intr_handler_t

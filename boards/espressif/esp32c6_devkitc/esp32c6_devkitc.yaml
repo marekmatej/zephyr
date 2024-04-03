@@ -2,7 +2,7 @@ identifier: esp32c6_devkitc
 name: ESP32-C6
 vendor: espressif
 type: mcu
-arch: riscv32
+arch: riscv
 toolchain:
   - zephyr
 supported:

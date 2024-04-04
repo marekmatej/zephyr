@@ -69,7 +69,7 @@ void flash_init(void);
 int wdt_install(void);
 
 /* Labels redefinition for different SoC's */
-#if CONFIG_SOC_ESP32C6
+#if CONFIG_SOC_ESP32C3 || CONFIG_SOC_ESP32C6
 #define SW_CPU_RESET	RTC_SW_CPU_RESET
 #define SW_RESET		RTC_SW_SYS_RESET
 #endif

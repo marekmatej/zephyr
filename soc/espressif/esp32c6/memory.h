@@ -10,8 +10,8 @@
 /* HP-SRAM (512kB) memory */
 #define SRAM1_DRAM_START   0x40800000
 #define SRAM1_IRAM_START   0x40800000
-/* ICache size is fixed to 16KB on ESP32-C6 */
-#define ICACHE_SIZE        SRAM0_SIZE
+/* ICache size is fixed to 32KB on ESP32-C6 */
+#define ICACHE_SIZE        0x8000
 
 /** Simplified memory map for the bootloader.
  *  Make sure the bootloader can load into main memory without overwriting itself.

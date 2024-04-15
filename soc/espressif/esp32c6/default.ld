@@ -21,8 +21,8 @@ user_iram_end = BOOTLOADER_IRAM_LOADER_SEG_START;
 #endif
 
 /* User available SRAM memory segments */
-user_iram_seg_org = SRAM1_IRAM_START;
-user_dram_seg_org = SRAM1_DRAM_START;
+user_iram_seg_org = SRAM1_IRAM_START + ICACHE_SIZE;
+user_dram_seg_org = SRAM1_DRAM_START + ICACHE_SIZE;
 user_dram_end = user_iram_end;
 user_idram_size = (user_dram_end - user_dram_seg_org);
 user_iram_seg_len = user_idram_size;
@@ -60,7 +60,7 @@ MEMORY
   irom0_0_seg(RX): org = IROM_SEG_ORG, len = IROM_SEG_LEN
   drom0_0_seg (R): org = DROM_SEG_ORG, len = DROM_SEG_LEN
 
-  rtc_iram_seg(RWX): org = 0x50000000, len = 0x2000
+ /*  rtc_iram_seg(RWX): org = 0x50000000, len = 0x2000 */
 
 #ifdef CONFIG_GEN_ISR_TABLES
   IDT_LIST(RW): org = 0x3ebfe010, len = 0x2000
@@ -71,7 +71,7 @@ MEMORY
  * As C3 only has RTC fast memory, this is not configurable like
  * on other targets.
  */
-REGION_ALIAS("rtc_slow_seg", rtc_iram_seg);
+// REGION_ALIAS("rtc_slow_seg", rtc_iram_seg);
 
 /*  Default entry point:  */
 ENTRY(CONFIG_KERNEL_ENTRY)
@@ -128,7 +128,7 @@ SECTIONS
   #include <zephyr/linker/rel-sections.ld>
 
   /* --- START OF RTC --- */
-
+#if 0
   .rtc.text :
   {
     . = ALIGN(4);
@@ -176,6 +176,8 @@ SECTIONS
 
   /* Get size of rtc slow data */
   _rtc_slow_length = (_rtc_force_slow_end - _rtc_data_start);
+
+#endif
 
   /* --- END OF RTC --- */
 

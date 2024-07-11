@@ -15,6 +15,7 @@
 
 #include <zephyr/logging/log.h>
 #include <zephyr/irq.h>
+#include <zephyr/sys/ring_buffer.h>
 
 #include <esp_clk_tree.h>
 #include "i2s_esp32.h"
@@ -83,38 +84,40 @@ static esp_err_t i2s_esp32_calculate_clock(const struct i2s_config *i2s_cfg,
 	return ESP_OK;
 }
 
-static int i2s_esp32_queue_get(struct ring_buffer *rb, void **mem_block, size_t *size)
+static int i2s_esp32_queue_get(struct ring_buf *rb, void **mem_block, size_t *size)
 {
 	unsigned int key = irq_lock();
+	int rb_len;
 
-	if (rb->count == 0) {
+	/* NOTE: I tried to just replace the calls, but in fact
+	 * using ring_buf api would totaly change the reading */
+	if (ring_buf_space_get(rb) < size) {
 		irq_unlock(key);
 		return -ENOMEM;
 	}
-	rb->count--;
 
-	*mem_block = rb->array[rb->tail].buffer;
-	*size = rb->array[rb->tail].size;
-	I2S_ESP32_MODULO_INC(rb->tail, rb->len);
+	rb_len = ring_buf_get_claim(rb, mem_block, size);
+	if (rb_len < size
 
 	irq_unlock(key);
 
 	return 0;
 }
 
-static int i2s_esp32_queue_put(struct ring_buffer *rb, void *mem_block, size_t size)
+static int i2s_esp32_queue_put(struct ring_buf *rb, void *mem_block, size_t size)
 {
 	unsigned int key = irq_lock();
 
+	/* NOTE: check should be replaced by the ring_buf API call */
 	if (rb->count == rb->len) {
 		irq_unlock(key);
 		return -ENOMEM;
 	}
-	rb->count++;
 
-	rb->array[rb->head].buffer = mem_block;
-	rb->array[rb->head].size = size;
-	I2S_ESP32_MODULO_INC(rb->head, rb->len);
+	/* NOTE: fetch flow from the ring_buf */
+	ring_buf_put_claim
+	ring_buf_put
+	ring_buf_put_finish
 
 	irq_unlock(key);
 
@@ -126,6 +129,7 @@ static void i2s_esp32_rx_queue_drop(struct i2s_esp32_stream *stream)
 	size_t size;
 	void *mem_block;
 
+	/* NOTE: dropping the RB using its API */
 	while (i2s_esp32_queue_get(&stream->queue, &mem_block, &size) == 0) {
 		k_mem_slab_free(stream->i2s_cfg.mem_slab, mem_block);
 	}
@@ -364,12 +368,12 @@ static void i2s_esp32_rx_callback(const struct device *dma_dev, void *arg, uint3
 
 	int err;
 
-	err = i2s_esp32_queue_put(&stream->queue, stream->mem_block, stream->mem_block_len);
+	err = i2s_esp32_queue_put(&stream->rb, stream->mem_block, stream->mem_block_len);
 	if (err < 0) {
 		stream->state = I2S_STATE_ERROR;
 		goto rx_disable;
 	}
-	k_sem_give(&stream->queue.sem);
+	k_sem_give(&stream->rb_lock);
 
 	if (stream->state == I2S_STATE_STOPPING) {
 		stream->state = I2S_STATE_READY;
@@ -419,7 +423,7 @@ static void i2s_esp32_tx_callback(const struct device *dma_dev, void *arg, uint3
 	}
 
 	if (stream->state == I2S_STATE_STOPPING) {
-		if (stream->queue.count == 0) {
+		if (ring_buf_space_get(&stream->rb) == 0) {
 			stream->queue_drop(stream);
 			stream->state = I2S_STATE_READY;
 			goto tx_disable;

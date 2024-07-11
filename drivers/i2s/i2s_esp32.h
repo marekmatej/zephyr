@@ -13,21 +13,6 @@
 #include "soc/rtc_periph.h"
 #include "hal/i2s_hal.h"
 
-struct queue_item {
-	void *buffer;
-	size_t size;
-};
-
-/* Minimal ring buffer implementation */
-struct ring_buffer {
-	struct k_sem sem;
-	struct queue_item *array;
-	uint16_t len;
-	uint16_t count;
-	uint16_t head;
-	uint16_t tail;
-};
-
 struct i2s_esp32_stream {
 	int32_t state;
 	struct i2s_config i2s_cfg;
@@ -42,7 +27,8 @@ struct i2s_esp32_stream {
 	size_t mem_block_len;
 	bool last_block;
 
-	struct ring_buffer queue;
+	struct ring_buf rb;
+	struct k_sem rb_lock;
 	void (*queue_drop)(struct i2s_esp32_stream *stream);
 	int (*start_transfer)(const struct device *dev);
 	void (*stop_transfer)(const struct device *dev);

@@ -7,6 +7,7 @@
 
 #include <espressif/esp32s3/esp32s3_appcpu.dtsi>
 #include <espressif/partitions_0x0_amp.dtsi>
+#include "esp32s3_devkitc-pinctrl.dtsi"
 
 / {
 	model = "Espressif ESP32S3-DevkitC APPCPU";
@@ -16,7 +17,18 @@
 		zephyr,sram = &sram0;
 		zephyr,ipc_shm = &shm0;
 		zephyr,ipc = &ipm0;
+		zephyr,console = &uart1;
+		zephyr,shell-uart = &uart1;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &slot0_appcpu_partition;
 	};
+};
+
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-names = "default";
 };
 
 &trng0 {

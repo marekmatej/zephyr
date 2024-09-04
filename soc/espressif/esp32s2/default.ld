@@ -930,7 +930,6 @@ SECTIONS
   #include <zephyr/linker/common-rom/common-rom-debug.ld>
   #include <zephyr/linker/common-rom/common-rom-misc.ld>
   #include <zephyr/linker/thread-local-storage.ld>
-  #include <snippets-sections.ld>
 
   /* Create an explicit section at the end of all the data that shall be mapped into drom.
    * This is used to calculate the size of the _image_drom_size variable */
@@ -944,6 +943,7 @@ SECTIONS
 
   } GROUP_DATA_LINK_IN(RODATA_REGION, ROMABLE_REGION)
 
+  #include <snippets-sections.ld>
   /* --- END OF .rodata --- */
 
   /* --- XTENSA GLUE AND DEBUG BEGIN --- */

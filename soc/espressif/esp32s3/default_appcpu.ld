@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Espressif Systems (Shanghai) Co., Ltd.
+ * Copyright (c) 2024 Espressif Systems (Shanghai) Co., Ltd.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,26 +8,43 @@
 #include <zephyr/linker/linker-defs.h>
 #include <zephyr/linker/linker-tool.h>
 
-#define SRAM_IRAM_START     0x40370000
-#define SRAM_DIRAM_I_START  0x40378000
-#define SRAM_IRAM_END       0x403BA000
-#define I_D_SRAM_OFFSET     (SRAM_DIRAM_I_START - SRAM_DRAM_START)
-#define DRAM_RESERVED_START 0x3fce9704
-#define IRAM_DRAM_OFFSET    0x6f0000
+#include "memory.h"
 
-#define SRAM_DRAM_START     0x3FC88000
-#define SRAM_DRAM_END       (SRAM_IRAM_END - I_D_SRAM_OFFSET)
+#ifdef CONFIG_ESP_SIMPLE_BOOT
+user_iram_end = (DRAM_BUFFERS_START + IRAM_DRAM_OFFSET);
+#else
+user_iram_end = BOOTLOADER_IRAM_LOADER_SEG_START;
+#endif
 
-#define IRAM_REGION iram0_0_seg
-#define RAMABLE_REGION dram0_0_seg
-#define ROMABLE_REGION iram0_0_seg
+user_dram_end = user_iram_end - IRAM_DRAM_OFFSET;
 
-#define IROM_SEG_ALIGN 0x4
+/* User available SRAM memory segments */
+user_iram_seg_org = user_iram_end - CONFIG_ESP32S3_APPCPU_IRAM_SIZE;
+user_iram_seg_len = CONFIG_ESP32S3_APPCPU_IRAM_SIZE;
+user_dram_seg_org = SRAM2_DRAM_START;
+user_dram_seg_len = SRAM2_SIZE;
+
+/* Aliases */
+#define ROMABLE_REGION   FLASH
+#define RODATA_REGION    drom0_1_seg
+#define RAMABLE_REGION   dram0_1_seg
+#define IRAM_REGION      iram0_1_seg
 
 MEMORY
 {
-  iram0_0_seg(RX): org = SRAM_IRAM_END - CONFIG_ESP32S3_APPCPU_IRAM, len = CONFIG_ESP32S3_APPCPU_IRAM
-  dram0_0_seg(RW): org = SRAM_DRAM_END - CONFIG_ESP32S3_APPCPU_DRAM, len = CONFIG_ESP32S3_APPCPU_DRAM
+#ifdef CONFIG_BOOTLOADER_MCUBOOT
+  mcuboot_hdr (R):  org = 0x0,  len = 0x20
+  metadata (R):     org = 0x20, len = 0x20
+  FLASH (R):        org = 0x40, len = FLASH_SIZE - 0x40
+#else
+  /* Make safety margin in the FLASH memory size so the
+   * (esp_img_header + (n*esp_seg_headers)) would fit */
+  FLASH (R):        org = 0x0, len = FLASH_SIZE - 0x100
+#endif /* CONFIG_BOOTLOADER_MCUBOOT */
+
+  iram0_1_seg(RX): org = user_iram_seg_org, len = user_iram_seg_len
+  dram0_1_seg(RW): org = user_dram_seg_org, len = user_dram_seg_len
+
 #ifdef CONFIG_GEN_ISR_TABLES
   IDT_LIST(RW): org = 0x3ebfe010, len = 0x2000
 #endif
@@ -41,13 +58,52 @@ _heap_sentry = DRAM_RESERVED_START;
 
 SECTIONS
 {
+#ifdef CONFIG_BOOTLOADER_MCUBOOT
+  /* Reserve space for MCUboot header in the binary */
+  .mcuboot_header :
+  {
+    QUAD(0x0)
+    QUAD(0x0)
+    QUAD(0x0)
+    QUAD(0x0)
+  } > mcuboot_hdr
+  .metadata :
+  {
+    /* 0. Magic byte for load header */
+    LONG(0xace637d3)
+
+    /* 1. Application entry point address */
+    KEEP(*(.entry_addr))
+
+    /* IRAM metadata:
+     * 2. Destination address (VMA) for IRAM region
+     * 3. Flash offset (LMA) for start of IRAM region
+     * 4. Size of IRAM region
+     */
+    LONG(ADDR(.iram0.vectors))
+    LONG(LOADADDR(.iram0.vectors))
+    LONG(LOADADDR(.iram0.text) + SIZEOF(.iram0.text) - LOADADDR(.iram0.vectors))
+
+    /* DRAM metadata:
+     * 5. Destination address (VMA) for DRAM region
+     * 6. Flash offset (LMA) for start of DRAM region
+     * 7. Size of DRAM region
+     */
+    LONG(ADDR(.dram0.data))
+    LONG(LOADADDR(.dram0.data))
+    LONG(LOADADDR(.dram0.end) + SIZEOF(.dram0.end) - LOADADDR(.dram0.data))
+  } > metadata
+#endif /* CONFIG_BOOTLOADER_MCUBOOT */
+
   #include <zephyr/linker/rel-sections.ld>
 
   #ifdef CONFIG_LLEXT
   #include <zephyr/linker/llext-sections.ld>
   #endif
 
-   /* Send .iram0 code to iram */
+  /* --- START OF IRAM --- */
+
+  /* Send .iram0 code to iram */
   .iram0.vectors : ALIGN(4)
   {
     /* Vectors go to IRAM */
@@ -87,9 +143,10 @@ SECTIONS
     _init_end = ABSOLUTE(.);
 
     _iram_start = ABSOLUTE(.);
-  } GROUP_LINK_IN(IRAM_REGION)
+  /* } GROUP_LINK_IN(IRAM_REGION) */
+  } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 
-  SECTION_PROLOGUE(_TEXT_SECTION_NAME, , ALIGN(4))
+  .iram0.text : ALIGN(4)
   {
     /* Code marked as running out of IRAM */
     _iram_text_start = ABSOLUTE(.);
@@ -126,9 +183,47 @@ SECTIONS
     _iram_end = ABSOLUTE(.);
     . = ALIGN(4) + 16;
 
-  } GROUP_LINK_IN(IRAM_REGION)
+  /* } GROUP_LINK_IN(IRAM_REGION) */
+  } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 
-  SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
+  .flash.text : ALIGN(16)
+  {
+    _stext = .;
+    _text_start = ABSOLUTE(.);
+
+    *(.stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*)
+    *(.irom0.text) /* catch stray ICACHE_RODATA_ATTR */
+    *(.fini.literal)
+    *(.fini)
+    *(.gnu.version)
+    *(.literal .text .literal.* .text.*)
+
+    /* CPU will try to prefetch up to 16 bytes of
+     * of instructions. This means that any configuration (e.g. MMU, PMS) must allow
+     * safe access to up to 16 bytes after the last real instruction, add
+     * dummy bytes to ensure this
+     */
+    . += 16;
+
+    _text_end = ABSOLUTE(.);
+    _etext = .;
+
+    /* Similar to _iram_start, this symbol goes here so it is
+     * resolved by addr2line in preference to the first symbol in
+     * the flash.text segment.
+     */
+    . = ALIGN(4);
+    _flash_cache_start = ABSOLUTE(0);
+  /* } GROUP_LINK_IN(IRAM_REGION) */
+  } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
+/*  } GROUP_DATA_LINK_IN(FLASH_CODE_REGION, ROMABLE_REGION) */
+
+  /* --- END OF IRAM --- */
+
+  /* --- START OF DRAM --- */
+
+  /* SECTION_PROLOGUE(_RODATA_SECTION_NAME,,) */
+  .dram0.rodata : ALIGN(4)
   {
     _rodata_start = ABSOLUTE(.);
 
@@ -183,7 +278,8 @@ SECTIONS
     _thread_local_end = ABSOLUTE(.);
     _rodata_reserved_end = ABSOLUTE(.);
     . = ALIGN(4);
-  } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION)
+  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
+  } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
   /* Flash segments (rodata and text) should be mapped in virtual address space by providing VMA.
    * Executing directly from LMA is not possible. */
@@ -201,11 +297,13 @@ SECTIONS
 
   /* Create an explicit section at the end of all the data that shall be mapped into drom.
    * This is used to calculate the size of the _image_drom_size variable */
-  SECTION_PROLOGUE(_RODATA_SECTION_END,,)
+  /* SECTION_PROLOGUE(_RODATA_SECTION_END,,) */
+  .dram0.rodata_end : ALIGN(0x10)
   {
     . = ALIGN(16);
     _image_rodata_end = ABSOLUTE(.);
-  } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION)
+  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
+  } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
 #include <snippets-sections.ld>
 
@@ -242,7 +340,8 @@ SECTIONS
     KEEP(*(.jcr))
     *(.dram1 .dram1.*)
     . = ALIGN(4);
-  } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION)
+  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
+  } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
   #include <zephyr/linker/cplusplus-rom.ld>
   #include <snippets-data-sections.ld>
@@ -265,10 +364,12 @@ SECTIONS
 
     . = ALIGN(4);
     __data_end = ABSOLUTE(.);
-  } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION)
+  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
+  } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
   /* Shared RAM */
-  SECTION_DATA_PROLOGUE(_BSS_SECTION_NAME,(NOLOAD),)
+  /* SECTION_DATA_PROLOGUE(_BSS_SECTION_NAME,(NOLOAD),) */
+  .dram0.bss (NOLOAD) :
   {
     . = ALIGN (8);
     _bss_start = ABSOLUTE(.); /* required by bluetooth library */
@@ -298,7 +399,8 @@ SECTIONS
 
   ASSERT(((__bss_end - ORIGIN(dram0_0_seg)) <= LENGTH(dram0_0_seg)), "DRAM segment data does not fit.")
 
-  SECTION_DATA_PROLOGUE(_NOINIT_SECTION_NAME, (NOLOAD),)
+  /* SECTION_DATA_PROLOGUE(_NOINIT_SECTION_NAME, (NOLOAD),) */
+  .dram0.noinit (NOLOAD):
   {
     . = ALIGN(8);
     *(.noinit)
@@ -306,35 +408,13 @@ SECTIONS
     . = ALIGN(8) ;
   } GROUP_LINK_IN(RAMABLE_REGION)
 
-  .flash.text : ALIGN(IROM_SEG_ALIGN)
-  {
-    _stext = .;
-    _text_start = ABSOLUTE(.);
+  /* --- END OF DRAM --- */
 
-    *(.stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*)
-    *(.irom0.text) /* catch stray ICACHE_RODATA_ATTR */
-    *(.fini.literal)
-    *(.fini)
-    *(.gnu.version)
-    *(.literal .text .literal.* .text.*)
+  /* --- START OF IROM --- */
+  /* --- END OF IROM --- */
 
-    /* CPU will try to prefetch up to 16 bytes of
-     * of instructions. This means that any configuration (e.g. MMU, PMS) must allow
-     * safe access to up to 16 bytes after the last real instruction, add
-     * dummy bytes to ensure this
-     */
-    . += 16;
-
-    _text_end = ABSOLUTE(.);
-    _etext = .;
-
-    /* Similar to _iram_start, this symbol goes here so it is
-     * resolved by addr2line in preference to the first symbol in
-     * the flash.text segment.
-     */
-	 . = ALIGN(4);
-    _flash_cache_start = ABSOLUTE(0);
-  } GROUP_LINK_IN(IRAM_REGION)
+  /* --- START OF DROM --- */
+  /* --- END OF DROM --- */
 
 #ifdef CONFIG_GEN_ISR_TABLES
 #include <zephyr/linker/intlist.ld>
@@ -375,8 +455,7 @@ SECTIONS
     KEEP (*(.xt.profile_files))
     KEEP (*(.gnu.linkonce.xt.profile_files.*))
   }
-
 }
 
-ASSERT(((_iram_end - ORIGIN(iram0_0_seg)) <= LENGTH(iram0_0_seg)),
+ASSERT(((_iram_end - ORIGIN(iram0_1_seg)) <= LENGTH(iram0_1_seg)),
           "IRAM0 segment data does not fit.")

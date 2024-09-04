@@ -26,8 +26,8 @@ user_iram_seg_org = SRAM0_IRAM_START + CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE;
 user_dram_end = BOOTLOADER_IRAM_LOADER_SEG_START - IRAM_DRAM_OFFSET;
 user_idram_size = user_dram_end - SRAM1_DRAM_START;
 sram0_iram_size = SRAM0_SIZE - CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE;
-user_iram_seg_len = user_idram_size + sram0_iram_size;
-user_dram_seg_len = user_idram_size;
+user_iram_seg_len = user_idram_size + sram0_iram_size - APPCPU_IRAM_SIZE;
+user_dram_seg_len = user_idram_size - APPCPU_DRAM_SIZE;
 
 /* Aliases */
 #define FLASH_CODE_REGION  irom0_0_seg
@@ -66,8 +66,8 @@ MEMORY
   FLASH (R):        org = 0x0, len = FLASH_SIZE - 0x100
 #endif /* CONFIG_BOOTLOADER_MCUBOOT */
 
-  iram0_0_seg(RX): org = user_iram_seg_org, len = user_iram_seg_len - APPCPU_IRAM_SIZE
-  dram0_0_seg(RW): org = user_dram_seg_org, len = user_dram_seg_len - APPCPU_DRAM_SIZE
+  iram0_0_seg(RX): org = user_iram_seg_org, len = user_iram_seg_len
+  dram0_0_seg(RW): org = user_dram_seg_org, len = user_dram_seg_len
 
   irom0_0_seg(RX): org = IROM_SEG_ORG, len = IROM_SEG_LEN
   drom0_0_seg(R):  org = DROM_SEG_ORG, len = DROM_SEG_LEN
@@ -790,6 +790,10 @@ SECTIONS
 
   } GROUP_DATA_LINK_IN(FLASH_CODE_REGION, ROMABLE_REGION)
 
+  /* --- END OF IROM --- */
+
+  /* --- START OF DROM --- */
+
   /* This dummy section represents the .flash.text section but in default_rodata_seg.
    * Thus, it must have its alignment and (at least) its size.
    */
@@ -871,6 +875,10 @@ SECTIONS
     _image_rodata_end = ABSOLUTE(.);
   } GROUP_DATA_LINK_IN(RODATA_REGION, ROMABLE_REGION)
 
+  /* --- END OF DROM --- */
+
+  /* --- START OF SPIRAM --- */
+
   /**
    * This section is required to skip flash rodata sections, because `ext_ram_seg`
    * and `drom0_0_seg` are on the same bus
@@ -899,8 +907,9 @@ SECTIONS
 
 #endif /* CONFIG_ESP_SPIRAM */
 
-  /* --- XTENSA GLUE AND DEBUG BEGIN --- */
+  /* --- END OF SPIRAM --- */
 
+  /* --- XTENSA GLUE AND DEBUG BEGIN --- */
 #ifdef CONFIG_GEN_ISR_TABLES
 #include <zephyr/linker/intlist.ld>
 #endif

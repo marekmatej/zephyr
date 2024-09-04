@@ -23,7 +23,7 @@ zephyr_library_sources_ifdef(CONFIG_POWEROFF poweroff.c)
 math(EXPR esptoolpy_flashsize "${CONFIG_FLASH_SIZE} / 0x100000")
 
 # Make rom loader compatible binary file
-if(NOT CONFIG_BOOTLOADER_MCUBOOT)
+if(CONFIG_ESP_SIMPLE_BOOT OR CONFIG_MCUBOOT)
 
   if(CONFIG_BUILD_OUTPUT_BIN)
 
@@ -46,29 +46,42 @@ if(NOT CONFIG_BOOTLOADER_MCUBOOT)
 
 endif()
 
-## When building for APPCPU
+## Building for APPCPU
 if (CONFIG_SOC_ESP32S3_APPCPU)
 
-  if(CONFIG_BUILD_OUTPUT_BIN)
-    set_property(GLOBAL APPEND PROPERTY extra_post_build_commands
-      COMMAND ${PYTHON_EXECUTABLE} ${ESP_IDF_PATH}/tools/esp_bin2c_array.py
-      ARGS -i ${CMAKE_BINARY_DIR}/zephyr/${CONFIG_KERNEL_BIN_NAME}.bin
-      -o ${CMAKE_BINARY_DIR}/zephyr/${CONFIG_KERNEL_BIN_NAME}.c
-      -a "esp32s3_appcpu_fw_array")
-  endif()
+message("########## APPCPU ################")
+	#if (0)
+	#  if(CONFIG_BUILD_OUTPUT_BIN)
+	#    set_property(GLOBAL APPEND PROPERTY extra_post_build_commands
+	#      COMMAND ${PYTHON_EXECUTABLE} ${ESP_IDF_PATH}/tools/esp_bin2c_array.py
+	#      ARGS -i ${CMAKE_BINARY_DIR}/zephyr/${CONFIG_KERNEL_BIN_NAME}.bin
+	#      -o ${CMAKE_BINARY_DIR}/zephyr/${CONFIG_KERNEL_BIN_NAME}.c
+	#      -a "esp32s3_appcpu_fw_array")
+	#  endif()
+	#endif()
+  # Get code-partition slot0 address
+  dt_nodelabel(dts_partition_path NODELABEL "slot0_appcpu_partition")
+  dt_reg_addr(img_0_off PATH ${dts_partition_path})
+  board_finalize_runner_args(esp32 "--esp-app-address=${img_0_off}")
+endif()
 
-else()
-  ## Building for PROCPU
 
-  set_property(TARGET bintools PROPERTY disassembly_flag_inline_source)
+## Building for PROCPU
+if (CONFIG_SOC_ESP32S3_PROCPU)
 
+  message("########## PROCPU ################")
+
+  #  set_property(TARGET bintools PROPERTY disassembly_flag_inline_source)
+
+if(CONFIG_ESP_SIMPLE_BOOT)
   # Get code-partition boot address
   dt_nodelabel(dts_partition_path NODELABEL "boot_partition")
-  dt_reg_addr(boot_off PATH ${dts_partition_path})
-
+  dt_reg_addr(image_offset PATH ${dts_partition_path})
+else()
   # Get code-partition slot0 address
   dt_nodelabel(dts_partition_path NODELABEL "slot0_partition")
-  dt_reg_addr(img_0_off PATH ${dts_partition_path})
+  dt_reg_addr(image_offset PATH ${dts_partition_path})
+endif()
 
   if(CONFIG_BOOTLOADER_MCUBOOT)
     board_finalize_runner_args(esp32 "--esp-app-address=${img_0_off}")
@@ -78,8 +91,9 @@ else()
 
 endif()
 
+# Look for cross references between bootloader sections
 if(CONFIG_MCUBOOT)
-    # search from cross references between bootloader sections
+
     message("check_callgraph using: ${ESP_IDF_PATH}/tools/ci/check_callgraph.py")
     set_property(GLOBAL APPEND PROPERTY extra_post_build_commands
       COMMAND

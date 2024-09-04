@@ -52,9 +52,9 @@ extern void z_prep_c(void);
 extern void esp_reset_reason_init(void);
 
 #ifdef CONFIG_SOC_ENABLE_APPCPU
+#if 0
 extern const unsigned char esp32s3_appcpu_fw_array[];
-
-void IRAM_ATTR esp_start_appcpu(void)
+void IRAM_ATTR esp_app_image_load_builtin(unsigned int *entry_addr)
 {
 	esp_image_header_t *header = (esp_image_header_t *)&esp32s3_appcpu_fw_array[0];
 	esp_image_segment_header_t *segment =
@@ -88,6 +88,8 @@ void IRAM_ATTR esp_start_appcpu(void)
 
 	esp_appcpu_start((void *)entry_addr);
 }
+#endif
+
 #endif /* CONFIG_SOC_ENABLE_APPCPU*/
 
 #ifndef CONFIG_MCUBOOT

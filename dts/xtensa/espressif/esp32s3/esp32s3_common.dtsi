@@ -91,6 +91,26 @@
 			reg = <0x3fc88000 0x77FFF>;
 		};
 
+		sram0_iram: memory@40370000 {
+			compatible = "mmio-sram";
+			reg = <0x40370000 DT_SIZE_K(32)>;
+		};
+/*
+		sram1_dram: memory@3fc88000 {
+			compatible = "mmio-sram";
+			reg = <0x3fc88000 DT_SIZE_K(319)>;
+		};
+*/
+		sram1_iram: memory@40378000 {
+			compatible = "mmio-sram";
+			reg = <0x40378000 DT_SIZE_K(319)>;
+		};
+
+		sram2_dram: memory@3fcf0000 {
+			compatible = "mmio-sram";
+			reg = <0x3fcf0000 DT_SIZE_K(64)>;
+		};
+
 		ipmmem0: memory@3fcbd000 {
 			compatible = "mmio-sram";
 			reg = <0x3fcbd000 0x400>;

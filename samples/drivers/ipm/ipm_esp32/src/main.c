@@ -46,7 +46,7 @@ int main(void)
 
 		printk("PRO_CPU received a message from APP_CPU : %s\n\r", received_string);
 
-		k_sleep(K_MSEC(200));
+		k_sleep(K_MSEC(2000));
 	}
 	return 0;
 }

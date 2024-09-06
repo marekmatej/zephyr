@@ -24,7 +24,9 @@ math(EXPR esptoolpy_flashsize "${CONFIG_FLASH_SIZE} / 0x100000")
 
 # Get UART baudrate from DT
 dt_chosen(dts_shell_uart PROPERTY "zephyr,shell-uart")
-dt_prop(monitor_baud PATH ${dts_shell_uart} PROPERTY "current-speed")
+if(${dts_shell_uart})
+  dt_prop(monitor_baud PATH ${dts_shell_uart} PROPERTY "current-speed")
+endif()
 
 board_runner_args(esp32 "--esp-monitor-baud=${monitor_baud}")
 
@@ -37,7 +39,7 @@ if(CONFIG_ESP_SIMPLE_BOOT OR CONFIG_MCUBOOT)
   if(CONFIG_BUILD_OUTPUT_BIN)
 
     set(ESPTOOL_PY ${ESP_IDF_PATH}/tools/esptool_py/esptool.py)
-    message("-- esptool.py path: ${ESPTOOL_PY}")
+    message("-- Use the esptool.py: ${ESPTOOL_PY}")
 
     set(ELF2IMAGE_ARG "")
     if(NOT CONFIG_MCUBOOT)
@@ -58,16 +60,16 @@ endif()
 
 # Select the image origin depending on the boot configuration
 if(CONFIG_SOC_ESP32S3_APPCPU)
-  message("### APPCPU APP #############")
+  message("### APPCPU APP ###")
   dt_nodelabel(dts_partition_path NODELABEL "slot0_appcpu_partition")
 elseif(CONFIG_MCUBOOT)
-  message("### MCUBOOT ################")
+  message("### MCUBOOT ###")
   dt_nodelabel(dts_partition_path NODELABEL "boot_partition")
 elseif(CONFIG_ESP_SIMPLE_BOOT)
-  message("### SIMPLEBOOT #############")
+  message("### SIMPLEBOOT ###")
   dt_nodelabel(dts_partition_path NODELABEL "boot_partition")
 else()
-  message("### default -> PROCPU APP #############")
+  message("### PROCPU APP ###")
   dt_nodelabel(dts_partition_path NODELABEL "slot0_partition")
 endif()
 
@@ -77,7 +79,7 @@ endif()
     board_finalize_runner_args(esp32 "--esp-app-address=${boot_off}")
   endif()
 
-message("-- image partition ${dts_partition_path} sizeof ${image_slot_size}")
+message("-- Image partition ${dts_partition_path} sizeof ${image_slot_size}")
 
 # Look for cross references between bootloader sections
 if(CONFIG_MCUBOOT)

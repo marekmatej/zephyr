@@ -84,7 +84,6 @@ void map_rom_segments(uint32_t app_drom_start, uint32_t app_drom_vaddr,
 	unsigned int segments = 0;
 	unsigned int ram_segments = 0;
 
-	/* Using already fetched bootloader image header from bootloader_init */
 	offset += sizeof(esp_image_header_t);
 
 	while (segments++ < 16) {

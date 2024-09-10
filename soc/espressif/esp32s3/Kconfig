@@ -14,11 +14,6 @@ config SOC_SERIES_ESP32S3
 
 if SOC_SERIES_ESP32S3
 
-	#config ESP32S3_APPCPU_IRAM
-	#config IDF_TARGET_ESP32S3
-	#	bool "ESP32S3 as target SOC"
-	#	default y
-
 config ESP32_PHY_MAX_WIFI_TX_POWER
 	int "Max WiFi/BLE TX power (dBm)"
 	range 10 20
@@ -30,32 +25,6 @@ config ESP32_PHY_MAX_WIFI_TX_POWER
 config ESP32_PHY_MAX_TX_POWER
 	int
 	default ESP32_PHY_MAX_WIFI_TX_POWER
-
-menu "AMP config"
-
-config ESP32S3_APPCPU_IRAM_SIZE
-	hex "ESP32S3 APPCPU IRAM size"
-	depends on SOC_ESP32S3_PROCPU || SOC_ESP32S3_APPCPU
-	default 0x20000
-	help
-	  Defines APPCPU IRAM area size in bytes.
-
-config ESP32S3_APPCPU_DRAM_SIZE
-	hex "ESP32S3 APPCPU DRAM size"
-	depends on SOC_ESP32S3_PROCPU || SOC_ESP32S3_APPCPU
-	default 0x10000
-	help
-	  Defines APPCPU DRAM area size in bytes.
-
-config SOC_ENABLE_APPCPU
-	bool "Utilize CPU1 of ESP32S3"
-	default y
-	depends on (IPM || MCUBOOT) && SOC_ESP32S3_PROCPU
-#	depends on (MBOX || MCUBOOT) && SOC_ESP32S3_PROCPU
-	help
-	  This hidden configuration lets PROCPU core to map and start APPCPU whenever IPM is enabled.
-
-endmenu # AMP config
 
 menu "Cache config"
 
@@ -209,5 +178,7 @@ config ESP_IMAGE_NUMBER
 	  ESP32-S3 is able to utilize two cores PROCPU (cpu0) and APPCPU (cpu1).
 
 endif
+
+rsource "Kconfig.amp"
 
 endif # SOC_SERIES_ESP32S3

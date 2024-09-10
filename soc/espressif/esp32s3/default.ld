@@ -10,24 +10,15 @@
 
 #include "memory.h"
 
-/* The "user_iram_end" represents the 2nd stage bootloader
- * "iram_loader_seg" start address (that should not be overlapped).
- * If no bootloader is used, we can extend it to gain more user ram.
- */
-#ifdef CONFIG_ESP_SIMPLE_BOOT
-user_iram_end = (BOOTLOADER_USER_DRAM_END + IRAM_DRAM_OFFSET);
-#else
-user_iram_end = BOOTLOADER_IRAM_LOADER_SEG_START;
-#endif
-
 /* User available SRAM memory segments */
-user_dram_seg_org = SRAM1_DRAM_START;
-user_iram_seg_org = SRAM0_IRAM_START + CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE;
-user_dram_end = BOOTLOADER_IRAM_LOADER_SEG_START - IRAM_DRAM_OFFSET;
-user_idram_size = user_dram_end - SRAM1_DRAM_START;
-sram0_iram_size = SRAM0_SIZE - CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE;
-user_iram_seg_len = user_idram_size + sram0_iram_size - APPCPU_IRAM_SIZE;
-user_dram_seg_len = user_idram_size - APPCPU_DRAM_SIZE;
+procpu_iram_end = USER_IRAM_END - APPCPU_SRAM_SIZE;
+procpu_dram_end = USER_DRAM_END - APPCPU_SRAM_SIZE;
+
+procpu_iram_seg_org = SRAM0_IRAM_START + CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE;
+procpu_iram_seg_len = procpu_iram_end - procpu_iram_seg_org;
+
+procpu_dram_seg_org = SRAM1_DRAM_START;
+procpu_dram_seg_len = procpu_dram_end - procpu_dram_seg_org;
 
 /* Aliases */
 #define FLASH_CODE_REGION  irom0_0_seg
@@ -66,14 +57,13 @@ MEMORY
   FLASH (R):        org = 0x0, len = FLASH_SIZE - 0x100
 #endif /* CONFIG_BOOTLOADER_MCUBOOT */
 
-  iram0_0_seg(RX): org = user_iram_seg_org, len = user_iram_seg_len
-  dram0_0_seg(RW): org = user_dram_seg_org, len = user_dram_seg_len
+  iram0_0_seg(RX): org = procpu_iram_seg_org, len = procpu_iram_seg_len
+  dram0_0_seg(RW): org = procpu_dram_seg_org, len = procpu_dram_seg_len
 
   irom0_0_seg(RX): org = IROM_SEG_ORG, len = IROM_SEG_LEN
   drom0_0_seg(R):  org = DROM_SEG_ORG, len = DROM_SEG_LEN
 
-  /**
-   * `ext_ram_seg` and `drom0_0_seg` share the same bus and the address region.
+  /* The `ext_ram_seg` and `drom0_0_seg` share the same bus and the address region.
    * A dummy section is used to avoid overlap. See `.ext_ram.dummy` in `sections.ld.in`
    */
 #if defined(CONFIG_ESP_SPIRAM)
@@ -105,7 +95,7 @@ _heap_sentry = DRAM_RESERVED_START;
 
 SECTIONS
 {
-  _iram_dram_offset =  IRAM_DRAM_OFFSET;
+  _iram_dram_offset = IRAM_DRAM_OFFSET;
 
 #ifdef CONFIG_BOOTLOADER_MCUBOOT
   /* Reserve space for MCUboot header in the binary */
@@ -143,7 +133,6 @@ SECTIONS
     LONG(LOADADDR(.dram0.end) + SIZEOF(.dram0.end) - LOADADDR(.dram0.data))
   } > metadata
 #endif /* CONFIG_BOOTLOADER_MCUBOOT */
-
 
 /* Virtual non-loadable sections */
 #include <zephyr/linker/rel-sections.ld>

@@ -10,19 +10,15 @@
 
 #include "memory.h"
 
-#ifdef CONFIG_ESP_SIMPLE_BOOT
-user_iram_end = (DRAM_BUFFERS_START + IRAM_DRAM_OFFSET);
-#else
-user_iram_end = BOOTLOADER_IRAM_LOADER_SEG_START;
-#endif
-
-user_dram_end = user_iram_end - IRAM_DRAM_OFFSET;
-
 /* User available SRAM memory segments */
-user_iram_seg_org = user_iram_end - CONFIG_ESP32S3_APPCPU_IRAM_SIZE;
-user_iram_seg_len = CONFIG_ESP32S3_APPCPU_IRAM_SIZE;
-user_dram_seg_org = SRAM2_DRAM_START;
-user_dram_seg_len = SRAM2_SIZE;
+appcpu_iram_end = USER_IRAM_END;
+appcpu_dram_end = USER_DRAM_END;
+
+appcpu_iram_seg_org = appcpu_iram_end - APPCPU_SRAM_SIZE;
+appcpu_iram_seg_len = APPCPU_SRAM_SIZE;
+
+appcpu_dram_seg_org = appcpu_dram_end - APPCPU_SRAM_SIZE;
+appcpu_dram_seg_len = APPCPU_SRAM_SIZE;
 
 /* Aliases */
 #define ROMABLE_REGION   FLASH
@@ -42,8 +38,8 @@ MEMORY
   FLASH (R):        org = 0x0, len = FLASH_SIZE - 0x100
 #endif /* CONFIG_BOOTLOADER_MCUBOOT */
 
-  iram0_1_seg(RX): org = user_iram_seg_org, len = user_iram_seg_len
-  dram0_1_seg(RW): org = user_dram_seg_org, len = user_dram_seg_len
+  iram0_1_seg(RX): org = appcpu_iram_seg_org, len = appcpu_iram_seg_len
+  dram0_1_seg(RW): org = appcpu_dram_seg_org, len = appcpu_dram_seg_len
 
 #ifdef CONFIG_GEN_ISR_TABLES
   IDT_LIST(RW): org = 0x3ebfe010, len = 0x2000
@@ -106,6 +102,7 @@ SECTIONS
   /* Send .iram0 code to iram */
   .iram0.vectors : ALIGN(4)
   {
+    _iram_start = ABSOLUTE(.);
     /* Vectors go to IRAM */
     _init_start = ABSOLUTE(.);
     /* Vectors according to builds/RF-2015.2-win32/esp108_v1_2_s5_512int_2/config.html */
@@ -367,6 +364,15 @@ SECTIONS
   /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
+  /* SECTION_DATA_PROLOGUE(_NOINIT_SECTION_NAME, (NOLOAD),) */
+  .dram0.noinit (NOLOAD):
+  {
+    . = ALIGN(8);
+    *(.noinit)
+    *(.noinit.*)
+    . = ALIGN(8) ;
+  } GROUP_LINK_IN(RAMABLE_REGION)
+
   /* Shared RAM */
   /* SECTION_DATA_PROLOGUE(_BSS_SECTION_NAME,(NOLOAD),) */
   .dram0.bss (NOLOAD) :
@@ -397,16 +403,7 @@ SECTIONS
   _image_ram_start = _iram_start - IRAM_DRAM_OFFSET;
   #include <zephyr/linker/ram-end.ld>
 
-  ASSERT(((__bss_end - ORIGIN(dram0_0_seg)) <= LENGTH(dram0_0_seg)), "DRAM segment data does not fit.")
-
-  /* SECTION_DATA_PROLOGUE(_NOINIT_SECTION_NAME, (NOLOAD),) */
-  .dram0.noinit (NOLOAD):
-  {
-    . = ALIGN(8);
-    *(.noinit)
-    *(.noinit.*)
-    . = ALIGN(8) ;
-  } GROUP_LINK_IN(RAMABLE_REGION)
+  ASSERT(((__bss_end - ORIGIN(dram0_1_seg)) <= LENGTH(dram0_1_seg)), "DRAM segment data does not fit.")
 
   /* --- END OF DRAM --- */
 

@@ -54,9 +54,10 @@
 extern void z_prep_c(void);
 extern void esp_reset_reason_init(void);
 
-#ifdef CONFIG_SOC_ENABLE_APPCPU
+#if 0 //def CONFIG_SOC_ENABLE_APPCPU
 
-
+/* TODO: make this function to parse the image in ESP Image Format
+ */
 void IRAM_ATTR esp_app_image_load_xxx(unsigned int *entry_addr)
 {
 	int rc;
@@ -237,8 +238,8 @@ void sys_arch_reboot(int type)
 static int start_appcpu(void)
 {
 //	esp_appcpu_image_start(1, 0, 0x20);
-	esp_app_image_load_xxx(NULL);
-	ets_printf("APP load done!\n");
+//	esp_app_image_load_xxx(NULL);
+	ets_printf("%s: APPCPU load done!\n", __func__);
 	return 0;
 }
 

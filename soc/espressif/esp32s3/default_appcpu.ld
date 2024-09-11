@@ -26,6 +26,25 @@ appcpu_dram_seg_len = APPCPU_SRAM_SIZE;
 #define RAMABLE_REGION   dram0_1_seg
 #define IRAM_REGION      iram0_1_seg
 
+/* Zephyr macro re-definitions */
+#undef GROUP_DATA_LINK_IN
+#define GROUP_DATA_LINK_IN(vregion, lregion) > vregion AT > lregion
+
+#undef GROUP_NOLOAD_LINK_IN
+#define GROUP_NOLOAD_LINK_IN(vregion, lregion) > vregion
+
+/* Flash segments (rodata and text) should be mapped in the virtual address spaces.
+ * Executing directly from LMA is not possible. */
+#undef GROUP_ROM_LINK_IN
+#define GROUP_ROM_LINK_IN(vregion, lregion) > RODATA_REGION AT > lregion
+
+/* Make sure new sections have consistent alignment between input and output sections */
+#undef SECTION_DATA_PROLOGUE
+#define SECTION_DATA_PROLOGUE(name, options, align) name options : ALIGN_WITH_INPUT
+
+#undef SECTION_PROLOGUE
+#define SECTION_PROLOGUE SECTION_DATA_PROLOGUE
+
 MEMORY
 {
 #ifdef CONFIG_BOOTLOADER_MCUBOOT
@@ -47,7 +66,7 @@ MEMORY
 }
 
 /*  Default entry point:  */
-ENTRY(__app_cpu_start)
+ENTRY("__app_cpu_start")
 
 /* Used as a pointer to the heap end */
 _heap_sentry = DRAM_RESERVED_START;
@@ -78,7 +97,7 @@ SECTIONS
      */
     LONG(ADDR(.iram0.vectors))
     LONG(LOADADDR(.iram0.vectors))
-    LONG(LOADADDR(.iram0.text) + SIZEOF(.iram0.text) - LOADADDR(.iram0.vectors))
+    LONG(LOADADDR(.flash.text) + SIZEOF(.flash.text) - LOADADDR(.iram0.vectors))
 
     /* DRAM metadata:
      * 5. Destination address (VMA) for DRAM region
@@ -87,7 +106,7 @@ SECTIONS
      */
     LONG(ADDR(.dram0.data))
     LONG(LOADADDR(.dram0.data))
-    LONG(LOADADDR(.dram0.end) + SIZEOF(.dram0.end) - LOADADDR(.dram0.data))
+    LONG(LOADADDR(.dram0.end) + SIZEOF(.dram0.end) - LOADADDR(.dram0.rodata))
   } > metadata
 #endif /* CONFIG_BOOTLOADER_MCUBOOT */
 
@@ -140,7 +159,7 @@ SECTIONS
     _init_end = ABSOLUTE(.);
 
     _iram_start = ABSOLUTE(.);
-  /* } GROUP_LINK_IN(IRAM_REGION) */
+
   } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 
   .iram0.text : ALIGN(4)
@@ -180,7 +199,6 @@ SECTIONS
     _iram_end = ABSOLUTE(.);
     . = ALIGN(4) + 16;
 
-  /* } GROUP_LINK_IN(IRAM_REGION) */
   } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 
   .flash.text : ALIGN(16)
@@ -218,6 +236,12 @@ SECTIONS
   /* --- END OF IRAM --- */
 
   /* --- START OF DRAM --- */
+
+  .dram0.dummy (NOLOAD):
+  {
+    . = ORIGIN(dram0_1_seg) + 18200;
+    . = ALIGN(4) + 16;
+  } GROUP_LINK_IN(RAMABLE_REGION)
 
   /* SECTION_PROLOGUE(_RODATA_SECTION_NAME,,) */
   .dram0.rodata : ALIGN(4)
@@ -275,7 +299,6 @@ SECTIONS
     _thread_local_end = ABSOLUTE(.);
     _rodata_reserved_end = ABSOLUTE(.);
     . = ALIGN(4);
-  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
   /* Flash segments (rodata and text) should be mapped in virtual address space by providing VMA.
@@ -292,6 +315,8 @@ SECTIONS
   #include <zephyr/linker/common-rom/common-rom-misc.ld>
   #pragma pop_macro("GROUP_ROM_LINK_IN")
 
+#include <snippets-sections.ld>
+
   /* Create an explicit section at the end of all the data that shall be mapped into drom.
    * This is used to calculate the size of the _image_drom_size variable */
   /* SECTION_PROLOGUE(_RODATA_SECTION_END,,) */
@@ -302,7 +327,6 @@ SECTIONS
   /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
-#include <snippets-sections.ld>
 
   .dram0.data :
   {

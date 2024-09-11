@@ -16,9 +16,9 @@
 #include <zephyr/drivers/interrupt_controller/intc_esp32.h>
 
 //#include "esp32s3/rom/uart.h"
-//#include "esp_mcuboot_image.h"
-//#include "esp_loader.h"
-//#include "esp_memory_utils.h"
+#include "esp_mcuboot_image.h"
+//#include "esp_image_loader.h"
+#include "esp_memory_utils.h"
 //#include "bootloader_flash_priv.h"
 
 void smp_log(const char *msg)
@@ -30,7 +30,7 @@ void smp_log(const char *msg)
 	esp_rom_uart_tx_one_char('\n');
 }
 
-#if 0 //def CONFIG_SOC_ENABLE_APPCPU
+#ifdef CONFIG_SOC_ENABLE_APPCPU
 void esp_appcpu_start(void *entry_point)
 {
 	esp_cpu_unstall(1);
@@ -87,25 +87,38 @@ void esp_appcpu_image_load(unsigned int hdr_offset, unsigned int *entry_addr)
 //	ets_printf("Loading image %d - slot %d from flash, area id: %d\n",
 //	img_index, slot, fa_id);
 
+ets_printf("fa_id = %d\n", fap->fa_id);
+ets_printf("fa_off = 0x%x\n", fap->fa_off);
+ets_printf("fa_size = 0x%x\n", fap->fa_size);
+//ets_printf("fa_label = %s\n", fap->fa_label);
+
 	const uint32_t *data = (const uint32_t *)bootloader_mmap((fap->fa_off + hdr_offset),
 				sizeof(esp_image_load_header_t));
+
 	esp_image_load_header_t load_header = {0};
 	memcpy((void *)&load_header, data, sizeof(esp_image_load_header_t));
 	bootloader_munmap(data);
 
-	hexdump("hdr", &load_header, 0x20 /*sizeof(esp_image_load_header_t)*/);
+	hexdump("espmeta", &load_header, sizeof(esp_image_load_header_t));
 
 	if (load_header.header_magic == ESP_LOAD_HEADER_MAGIC) {
-		esp_image_format = 1;
-	} else if (load_header.header_magic & 0xff == 0xE9) {
 		esp_image_format = 0;
+		ets_printf("MCUboot image format - header magic found\n");
+	} else if (load_header.header_magic & 0xff == 0xE9) {
+		esp_image_format = 1;
+		ets_printf("ESP image format - header magic found\n");
 	}
 
-	if (esp_image_format) {
-		ets_printf("ESP image format - header magic found\n");
-	} else {
-		ets_printf("MCUboot image format - header magic found\n");
-#if 0
+	ets_printf("hdr.magic = 0x%x\n", load_header.header_magic);
+	ets_printf("hdr.entry = 0x%x\n", load_header.entry_addr);
+	ets_printf("hdr.iram_dest = 0x%x\n", load_header.iram_dest_addr);
+	ets_printf("hdr.iram_src  = 0x%x\n", load_header.iram_flash_offset + fap->fa_off);
+	ets_printf("hdr.iram_size = 0x%x\n", load_header.iram_size);
+	ets_printf("hdr.dram_dest = 0x%x\n", load_header.dram_dest_addr);
+	ets_printf("hdr.dram_src  = 0x%x\n", load_header.dram_flash_offset + fap->fa_off);
+	ets_printf("hdr.dram_size = 0x%x\n", load_header.dram_size);
+
+#if 1
 		if (!esp_ptr_in_iram((void *)load_header.iram_dest_addr) ||
 		    !esp_ptr_in_iram((void *)(load_header.iram_dest_addr + load_header.iram_size))) {
 		    ets_printf("IRAM region in load header is not valid. Aborting");
@@ -124,9 +137,10 @@ void esp_appcpu_image_load(unsigned int hdr_offset, unsigned int *entry_addr)
 		    abort();
 		}
 #endif
-	}
 
-#if 0
+	ets_printf("ALL good, can load image!!!\n");
+
+#if 1
 	ets_printf("Application start=%xh\n", load_header.entry_addr);
 	ets_printf("DRAM segment: paddr=%08xh, vaddr=%08xh, size=%05xh (%6d) load\n",
 	(fap->fa_off + load_header.dram_flash_offset), load_header.dram_dest_addr,
@@ -145,12 +159,13 @@ void esp_appcpu_image_load(unsigned int hdr_offset, unsigned int *entry_addr)
 	assert(entry_addr != NULL);
 	*entry_addr = load_header.entry_addr;
 #endif
+	ets_printf("ALL good, image!!!\n");
 }
 
 void esp_appcpu_image_start(unsigned int hdr_offset)
 {
 	static int started = 0;
-	unsigned int entry_addr;
+	unsigned int entry_addr = 0;
 
 	if (started) {
 		printk("APPCPU allready started.\n");
@@ -159,14 +174,15 @@ void esp_appcpu_image_start(unsigned int hdr_offset)
 
 	esp_appcpu_image_load(hdr_offset, &entry_addr);
 
+	ets_printf("%s - entry address for APPCPU is 0x%x\n", __func__, entry_addr);
 //	esp_appcpu_start((void *)entry_addr);
 }
 
-static int start_appcpu(void)
+static int esp_start_appcpu(void)
 {
-	esp_appcpu_image_start(0);
+	esp_appcpu_image_start(0x20);
 	return 0;
 }
 
-//SYS_INIT(start_appcpu, APPLICATION, 99);
-#endif
+SYS_INIT(esp_start_appcpu, APPLICATION, 99);
+#endif /* CONFIG_SOC_ENABLE_APPCPU */

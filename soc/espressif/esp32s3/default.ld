@@ -27,6 +27,7 @@ procpu_dram_seg_len = procpu_dram_end - procpu_dram_seg_org;
 #define RAMABLE_REGION     dram0_0_seg
 #define ROMABLE_REGION     FLASH
 
+/* Zephyr macro re-definitions */
 #undef GROUP_DATA_LINK_IN
 #define GROUP_DATA_LINK_IN(vregion, lregion) > vregion AT > lregion
 
@@ -485,14 +486,14 @@ SECTIONS
 
   /* --- START OF DRAM --- */
 
-  .dram0.dummy (NOLOAD):
-  {
-    /* Spacer section is required to skip .iram0.text area because
-     * iram0_0_seg and dram0_0_seg reflect the same address space on different buses.
-     */
-    . = ORIGIN(dram0_0_seg) + MAX(_iram_end, SRAM1_IRAM_START) - SRAM1_IRAM_START;
-    . = ALIGN(4) + 16;
-  } GROUP_LINK_IN(RAMABLE_REGION)
+ // .dram0.dummy (NOLOAD):
+ // {
+ //   /* Spacer section is required to skip .iram0.text area because
+ //    * iram0_0_seg and dram0_0_seg reflect the same address space on different buses.
+ //    */
+ //   . = ORIGIN(dram0_0_seg) + MAX(_iram_end, SRAM1_IRAM_START) - SRAM1_IRAM_START;
+ //   . = ALIGN(4) + 16;
+ // } GROUP_LINK_IN(RAMABLE_REGION)
 
   .dram0.data :
   {

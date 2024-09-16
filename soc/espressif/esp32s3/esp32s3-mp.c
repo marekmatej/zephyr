@@ -184,5 +184,5 @@ static int esp_start_appcpu(void)
 	return 0;
 }
 
-SYS_INIT(esp_start_appcpu, APPLICATION, 99);
+//SYS_INIT(esp_start_appcpu, APPLICATION, 99);
 #endif /* CONFIG_SOC_ENABLE_APPCPU */

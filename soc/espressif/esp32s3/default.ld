@@ -300,6 +300,12 @@ SECTIONS
     *libphy.a:(.phyiram .phyiram.*)
     *libgcov.a:(.literal .text .literal.* .text.*)
 
+    /* APPCPU_ENABLED */
+    *libzephyr.a:esp32s3-mp.*(.literal .text .literal.* .text.*)
+    *libzephyr.a:bootloader_flash.*(.literal .text .literal.* .text.*)
+    *libzephyr.a:flash_mmap.*(.literal .text .literal.* .text.*)
+    *libzephyr.a:heapflash_mmap.*(.literal .text .literal.* .text.*)
+
     /* [mapping:esp_psram] */
     *libzephyr.a:mmu_psram_flash.*(.literal .literal.* .text .text.*)
     *libzephyr.a:esp_psram_impl_quad.*(.literal .literal.* .text .text.*)
@@ -486,14 +492,14 @@ SECTIONS
 
   /* --- START OF DRAM --- */
 
- // .dram0.dummy (NOLOAD):
- // {
- //   /* Spacer section is required to skip .iram0.text area because
- //    * iram0_0_seg and dram0_0_seg reflect the same address space on different buses.
- //    */
- //   . = ORIGIN(dram0_0_seg) + MAX(_iram_end, SRAM1_IRAM_START) - SRAM1_IRAM_START;
- //   . = ALIGN(4) + 16;
- // } GROUP_LINK_IN(RAMABLE_REGION)
+  .dram0.dummy (NOLOAD):
+  {
+    /* Spacer section is required to skip .iram0.text area because
+     * iram0_0_seg and dram0_0_seg reflect the same address space on different buses.
+     */
+    . = ORIGIN(dram0_0_seg) + MAX(_iram_end, SRAM1_IRAM_START) - SRAM1_IRAM_START;
+    . = ALIGN(4) + 16;
+  } GROUP_LINK_IN(RAMABLE_REGION)
 
   .dram0.data :
   {
@@ -535,6 +541,11 @@ SECTIONS
     *libdrivers__flash.a:flash_esp32.*(.rodata .rodata.*)
     *libzephyr.a:esp_mmu_map.*(.rodata .rodata.*)
     *libdrivers__interrupt_controller.a:(.rodata .rodata.*)
+
+    /* APPCPU_ENABLE */
+    *libzephyr.a:esp32s3-mp.*(.rodata .rodata.*)
+    *libzephyr.a:bootloader_flash.*(.rodata .rodata.* .sdata2 .sdata2.* .srodata .srodata.*)
+    *libzephyr.a:flash_mmap.*(.rodata .rodata.* .sdata2 .sdata2.* .srodata .srodata.*)
 
     /* [mapping:esp_psram] */
     *libzephyr.a:mmu_psram_flash.*(.rodata .rodata.*)

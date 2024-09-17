@@ -49,75 +49,66 @@ void esp_appcpu_start(void *entry_point)
 	smp_log("ESP32S3: CPU1 start sequence complete");
 }
 
-
-static int load_segment(const struct flash_area *fap, uint32_t data_addr,
-                        uint32_t data_len, uint32_t load_addr)
+static int load_segment(uint32_t src_addr, uint32_t src_len, uint32_t dst_addr)
 {
-	const uint32_t *data = (const uint32_t *)bootloader_mmap((fap->fa_off + data_addr), data_len);
+	ets_printf("%s: %x ->(%dB)-> %x\n", src_addr, src_len, dst_addr);
+	return 0;
+	const uint32_t *data = (const uint32_t *)bootloader_mmap(src_addr, src_len);
 	if (!data) {
 		ets_printf("%s: Bootloader mmap failed", __func__);
 		return -1;
 	}
-	memcpy((void *)load_addr, data, data_len);
+	memcpy((void *)dst_addr, data, src_len);
 	bootloader_munmap(data);
 	return 0;
 }
 
 #include "hexdump.h"
 
-void esp_appcpu_image_load(unsigned int hdr_offset, unsigned int *entry_addr)
+int esp_appcpu_image_load(unsigned int hdr_offset, unsigned int *entry_addr)
 {
-	const struct flash_area *fap;
-	uint8_t fa_id = FIXED_PARTITION_ID(slot0_appcpu_partition);
-	int esp_image_format;
-	int rc;
+	const uint32_t img_off = FIXED_PARTITION_OFFSET(slot0_appcpu_partition);
+	const uint32_t fa_size = FIXED_PARTITION_SIZE(slot0_appcpu_partition);
+	const uint8_t fa_id = FIXED_PARTITION_ID(slot0_appcpu_partition);
+	int rc = 0;
 
 	if (entry_addr == NULL) {
 		ets_printf("cant return the entry address. Aborting!\n");
 		abort();
-		return;
+		return -1;
 	}
 
-	rc = flash_area_open(fa_id, &fap);
-	if (rc) {
-	    ets_printf("%s: flash_area_open failed with %d\n", __func__, rc);
-	    abort();
-	}
+	ets_printf("Loading appcpu image from flash, area id: %d, offset: 0x%x, size: %d kB\n",
+	fa_id, img_off + hdr_offset, fa_size/1024);
 
-//	ets_printf("Loading image %d - slot %d from flash, area id: %d\n",
-//	img_index, slot, fa_id);
-
-ets_printf("fa_id = %d\n", fap->fa_id);
-ets_printf("fa_off = 0x%x\n", fap->fa_off);
-ets_printf("fa_size = 0x%x\n", fap->fa_size);
-//ets_printf("fa_label = %s\n", fap->fa_label);
-
-	const uint32_t *data = (const uint32_t *)bootloader_mmap((fap->fa_off + hdr_offset),
+	const uint32_t *data = (const uint32_t *)bootloader_mmap(img_off + hdr_offset,
 				sizeof(esp_image_load_header_t));
 
 	esp_image_load_header_t load_header = {0};
 	memcpy((void *)&load_header, data, sizeof(esp_image_load_header_t));
 	bootloader_munmap(data);
 
-	hexdump("espmeta", &load_header, sizeof(esp_image_load_header_t));
+return rc;
+
+	hexdump("esp_image", &load_header, sizeof(esp_image_load_header_t));
 
 	if (load_header.header_magic == ESP_LOAD_HEADER_MAGIC) {
-		esp_image_format = 0;
 		ets_printf("MCUboot image format - header magic found\n");
-	} else if (load_header.header_magic & 0xff == 0xE9) {
-		esp_image_format = 1;
+	} else if ((load_header.header_magic & 0xff) == 0xE9) {
 		ets_printf("ESP image format - header magic found\n");
+	} else {
+		ets_printf("Unknown or empty image detected. Aborting!\n");
+		abort();
 	}
 
 	ets_printf("hdr.magic = 0x%x\n", load_header.header_magic);
 	ets_printf("hdr.entry = 0x%x\n", load_header.entry_addr);
 	ets_printf("hdr.iram_dest = 0x%x\n", load_header.iram_dest_addr);
-	ets_printf("hdr.iram_src  = 0x%x\n", load_header.iram_flash_offset + fap->fa_off);
+	ets_printf("hdr.iram_src  = 0x%x\n", load_header.iram_flash_offset + img_off);
 	ets_printf("hdr.iram_size = 0x%x\n", load_header.iram_size);
 	ets_printf("hdr.dram_dest = 0x%x\n", load_header.dram_dest_addr);
-	ets_printf("hdr.dram_src  = 0x%x\n", load_header.dram_flash_offset + fap->fa_off);
+	ets_printf("hdr.dram_src  = 0x%x\n", load_header.dram_flash_offset + img_off);
 	ets_printf("hdr.dram_size = 0x%x\n", load_header.dram_size);
-
 #if 1
 		if (!esp_ptr_in_iram((void *)load_header.iram_dest_addr) ||
 		    !esp_ptr_in_iram((void *)(load_header.iram_dest_addr + load_header.iram_size))) {
@@ -139,27 +130,25 @@ ets_printf("fa_size = 0x%x\n", fap->fa_size);
 #endif
 
 	ets_printf("ALL good, can load image!!!\n");
-
+return rc;
 #if 1
 	ets_printf("Application start=%xh\n", load_header.entry_addr);
 	ets_printf("DRAM segment: paddr=%08xh, vaddr=%08xh, size=%05xh (%6d) load\n",
-	(fap->fa_off + load_header.dram_flash_offset), load_header.dram_dest_addr,
+	(img_off + load_header.dram_flash_offset), load_header.dram_dest_addr,
 	load_header.dram_size, load_header.dram_size);
-	load_segment(fap, load_header.dram_flash_offset,
-	load_header.dram_size, load_header.dram_dest_addr);
+//	load_segment(load_header.dram_flash_offset, load_header.dram_size, load_header.dram_dest_addr);
 
 	ets_printf("IRAM segment: paddr=%08xh, vaddr=%08xh, size=%05xh (%6d) load\n",
-	(fap->fa_off + load_header.iram_flash_offset), load_header.iram_dest_addr,
+	(img_off + load_header.iram_flash_offset), load_header.iram_dest_addr,
 	load_header.iram_size, load_header.iram_size);
-	load_segment(fap, load_header.iram_flash_offset,
-	load_header.iram_size, load_header.iram_dest_addr);
+
+//	load_segment(load_header.iram_flash_offset, load_header.iram_size, load_header.iram_dest_addr);
 
 	uart_tx_wait_idle(0);
 
 	assert(entry_addr != NULL);
 	*entry_addr = load_header.entry_addr;
 #endif
-	ets_printf("ALL good, image!!!\n");
 }
 
 void esp_appcpu_image_start(unsigned int hdr_offset)
@@ -174,15 +163,16 @@ void esp_appcpu_image_start(unsigned int hdr_offset)
 
 	esp_appcpu_image_load(hdr_offset, &entry_addr);
 
-	ets_printf("%s - entry address for APPCPU is 0x%x\n", __func__, entry_addr);
+	ets_printf("Starting APPCPU with entry address 0x%x\n", __func__, entry_addr);
 //	esp_appcpu_start((void *)entry_addr);
 }
 
-static int esp_start_appcpu(void)
+int esp_start_appcpu(void)
 {
 	esp_appcpu_image_start(0x20);
 	return 0;
 }
-
-//SYS_INIT(esp_start_appcpu, APPLICATION, 99);
+#ifndef CONFIG_MCUBOOT
+SYS_INIT(esp_start_appcpu, APPLICATION, 99);
+#endif
 #endif /* CONFIG_SOC_ENABLE_APPCPU */

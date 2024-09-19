@@ -8,14 +8,14 @@ menu "AMP config"
 config ESP32S3_APPCPU_IRAM_SIZE
 	hex "ESP32S3 APPCPU IRAM size"
 	depends on SOC_ESP32S3_PROCPU || SOC_ESP32S3_APPCPU
-	default 0x20000
+	default 0x10000
 	help
 	  Defines APPCPU IRAM area size in bytes.
 
 config ESP32S3_APPCPU_DRAM_SIZE
 	hex "ESP32S3 APPCPU DRAM size"
 	depends on SOC_ESP32S3_PROCPU || SOC_ESP32S3_APPCPU
-	default 0x20000
+	default 0x10000
 	help
 	  Defines APPCPU DRAM area size in bytes.
 

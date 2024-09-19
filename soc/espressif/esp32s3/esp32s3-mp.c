@@ -53,13 +53,13 @@ static int load_segment(uint32_t src_addr, uint32_t src_len, uint32_t dst_addr)
 {
 	ets_printf("%s: %x ->(%dB)-> %x\n", src_addr, src_len, dst_addr);
 	return 0;
-	const uint32_t *data = (const uint32_t *)bootloader_mmap(src_addr, src_len);
+	const uint32_t *data = (const uint32_t *)sys_mmap(src_addr, src_len);
 	if (!data) {
 		ets_printf("%s: Bootloader mmap failed", __func__);
 		return -1;
 	}
 	memcpy((void *)dst_addr, data, src_len);
-	bootloader_munmap(data);
+	sys_munmap(data);
 	return 0;
 }
 
@@ -81,73 +81,71 @@ int esp_appcpu_image_load(unsigned int hdr_offset, unsigned int *entry_addr)
 	ets_printf("Loading appcpu image from flash, area id: %d, offset: 0x%x, size: %d kB\n",
 	fa_id, img_off + hdr_offset, fa_size/1024);
 
-	const uint32_t *data = (const uint32_t *)bootloader_mmap(img_off + hdr_offset,
+	const uint32_t *data = (const uint32_t *)sys_mmap(img_off + hdr_offset,
 				sizeof(esp_image_load_header_t));
 
-	esp_image_load_header_t load_header = {0};
-	memcpy((void *)&load_header, data, sizeof(esp_image_load_header_t));
-	bootloader_munmap(data);
+	esp_image_load_header_t img_header = {0};
+	memcpy((void *)&img_header, data, sizeof(esp_image_load_header_t));
+	sys_munmap(data);
 
-return rc;
+	hexdump("esp_image", &img_header, sizeof(esp_image_load_header_t));
 
-	hexdump("esp_image", &load_header, sizeof(esp_image_load_header_t));
-
-	if (load_header.header_magic == ESP_LOAD_HEADER_MAGIC) {
+	if (img_header.header_magic == ESP_LOAD_HEADER_MAGIC) {
 		ets_printf("MCUboot image format - header magic found\n");
-	} else if ((load_header.header_magic & 0xff) == 0xE9) {
+	} else if ((img_header.header_magic & 0xff) == 0xE9) {
 		ets_printf("ESP image format - header magic found\n");
 	} else {
 		ets_printf("Unknown or empty image detected. Aborting!\n");
 		abort();
 	}
 
-	ets_printf("hdr.magic = 0x%x\n", load_header.header_magic);
-	ets_printf("hdr.entry = 0x%x\n", load_header.entry_addr);
-	ets_printf("hdr.iram_dest = 0x%x\n", load_header.iram_dest_addr);
-	ets_printf("hdr.iram_src  = 0x%x\n", load_header.iram_flash_offset + img_off);
-	ets_printf("hdr.iram_size = 0x%x\n", load_header.iram_size);
-	ets_printf("hdr.dram_dest = 0x%x\n", load_header.dram_dest_addr);
-	ets_printf("hdr.dram_src  = 0x%x\n", load_header.dram_flash_offset + img_off);
-	ets_printf("hdr.dram_size = 0x%x\n", load_header.dram_size);
+	ets_printf("hdr.magic = 0x%x\n", img_header.header_magic);
+	ets_printf("hdr.entry = 0x%x\n", img_header.entry_addr);
+	ets_printf("hdr.iram_dest = 0x%x\n", img_header.iram_dest_addr);
+	ets_printf("hdr.iram_src  = 0x%x\n", img_header.iram_flash_offset + img_off);
+	ets_printf("hdr.iram_size = 0x%x\n", img_header.iram_size);
+	ets_printf("hdr.dram_dest = 0x%x\n", img_header.dram_dest_addr);
+	ets_printf("hdr.dram_src  = 0x%x\n", img_header.dram_flash_offset + img_off);
+	ets_printf("hdr.dram_size = 0x%x\n", img_header.dram_size);
 #if 1
-		if (!esp_ptr_in_iram((void *)load_header.iram_dest_addr) ||
-		    !esp_ptr_in_iram((void *)(load_header.iram_dest_addr + load_header.iram_size))) {
+		if (!esp_ptr_in_iram((void *)img_header.iram_dest_addr) ||
+		    !esp_ptr_in_iram((void *)(img_header.iram_dest_addr + img_header.iram_size))) {
 		    ets_printf("IRAM region in load header is not valid. Aborting");
 		    abort();
 		}
 
-		if (!esp_ptr_in_dram((void *)load_header.dram_dest_addr) ||
-		    !esp_ptr_in_dram((void *)(load_header.dram_dest_addr + load_header.dram_size))) {
+		if (!esp_ptr_in_dram((void *)img_header.dram_dest_addr) ||
+		    !esp_ptr_in_dram((void *)(img_header.dram_dest_addr + img_header.dram_size))) {
 		    ets_printf("DRAM region in load header is not valid. Aborting");
 		    abort();
 		}
 
-		if (!esp_ptr_in_iram((void *)load_header.entry_addr)) {
+		if (!esp_ptr_in_iram((void *)img_header.entry_addr)) {
 		    ets_printf("Application entry point (%xh) is not in IRAM. Aborting",
-		    load_header.entry_addr);
+		    img_header.entry_addr);
 		    abort();
 		}
 #endif
 
 	ets_printf("ALL good, can load image!!!\n");
-return rc;
+
 #if 1
-	ets_printf("Application start=%xh\n", load_header.entry_addr);
+	ets_printf("Application start=%xh\n", img_header.entry_addr);
 	ets_printf("DRAM segment: paddr=%08xh, vaddr=%08xh, size=%05xh (%6d) load\n",
-	(img_off + load_header.dram_flash_offset), load_header.dram_dest_addr,
-	load_header.dram_size, load_header.dram_size);
-//	load_segment(load_header.dram_flash_offset, load_header.dram_size, load_header.dram_dest_addr);
-
+	(img_off + img_header.dram_flash_offset), img_header.dram_dest_addr,
+	img_header.dram_size, img_header.dram_size);
+	load_segment(img_header.dram_flash_offset, img_header.dram_size, img_header.dram_dest_addr);
+return rc;
 	ets_printf("IRAM segment: paddr=%08xh, vaddr=%08xh, size=%05xh (%6d) load\n",
-	(img_off + load_header.iram_flash_offset), load_header.iram_dest_addr,
-	load_header.iram_size, load_header.iram_size);
+	(img_off + img_header.iram_flash_offset), img_header.iram_dest_addr,
+	img_header.iram_size, img_header.iram_size);
 
-//	load_segment(load_header.iram_flash_offset, load_header.iram_size, load_header.iram_dest_addr);
+//	load_segment(img_header.iram_flash_offset, img_header.iram_size, img_header.iram_dest_addr);
 
 	uart_tx_wait_idle(0);
 
 	assert(entry_addr != NULL);
-	*entry_addr = load_header.entry_addr;
+	*entry_addr = img_header.entry_addr;
 #endif
 }
 

@@ -195,10 +195,10 @@ void IRAM_ATTR __esp_platform_start(void)
 	esp_init_psram();
 #endif /* CONFIG_ESP_SPIRAM */
 
-#if CONFIG_SOC_ENABLE_APPCPU
-	/* start the ESP32S3 APP CPU */
-	esp_start_appcpu();
-#endif
+//#if CONFIG_SOC_ENABLE_APPCPU
+//	/* start the ESP32S3 APP CPU */
+//	esp_start_appcpu();
+//#endif
 
 #endif /* !CONFIG_MCUBOOT */
 

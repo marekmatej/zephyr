@@ -22,7 +22,7 @@ appcpu_dram_seg_len = APPCPU_SRAM_SIZE;
 
 /* Aliases */
 #define ROMABLE_REGION   FLASH
-#define RODATA_REGION    drom0_1_seg
+#define RODATA_REGION    dram0_1_seg /* drom0_1_seg */
 #define RAMABLE_REGION   dram0_1_seg
 #define IRAM_REGION      iram0_1_seg
 
@@ -97,7 +97,7 @@ SECTIONS
      */
     LONG(ADDR(.iram0.vectors))
     LONG(LOADADDR(.iram0.vectors))
-    LONG(LOADADDR(.flash.text) + SIZEOF(.flash.text) - LOADADDR(.iram0.vectors))
+    LONG(_iram_end - _init_start);
 
     /* DRAM metadata:
      * 5. Destination address (VMA) for DRAM region
@@ -106,7 +106,7 @@ SECTIONS
      */
     LONG(ADDR(.dram0.data))
     LONG(LOADADDR(.dram0.data))
-    LONG(LOADADDR(.dram0.end) + SIZEOF(.dram0.end) - LOADADDR(.dram0.rodata))
+    LONG(_data_end - _data_start)
   } > metadata
 #endif /* CONFIG_BOOTLOADER_MCUBOOT */
 
@@ -121,7 +121,6 @@ SECTIONS
   /* Send .iram0 code to iram */
   .iram0.vectors : ALIGN(4)
   {
-    _iram_start = ABSOLUTE(.);
     /* Vectors go to IRAM */
     _init_start = ABSOLUTE(.);
     /* Vectors according to builds/RF-2015.2-win32/esp108_v1_2_s5_512int_2/config.html */
@@ -195,8 +194,8 @@ SECTIONS
     *libphy.a:(.phyiram .phyiram.*)
     *libgcov.a:(.literal .text .literal.* .text.*)
 
-    . = ALIGN(4);
-    _iram_end = ABSOLUTE(.);
+    //. = ALIGN(4);
+//    _iram_end = ABSOLUTE(.);
     . = ALIGN(4) + 16;
 
   } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
@@ -229,9 +228,13 @@ SECTIONS
      */
     . = ALIGN(4);
     _flash_cache_start = ABSOLUTE(0);
+
+    . = ALIGN(4) + 16;
+    _iram_end = ABSOLUTE(.);
   /* } GROUP_LINK_IN(IRAM_REGION) */
   } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 /*  } GROUP_DATA_LINK_IN(FLASH_CODE_REGION, ROMABLE_REGION) */
+
 
   /* --- END OF IRAM --- */
 
@@ -239,9 +242,63 @@ SECTIONS
 
   .dram0.dummy (NOLOAD):
   {
-    . = ORIGIN(dram0_1_seg) + 18200;
-    . = ALIGN(4) + 16;
+    . = ORIGIN(dram0_1_seg) + MAX(_iram_end, appcpu_iram_seg_org) - appcpu_iram_seg_org;
+    . = ALIGN(4);
   } GROUP_LINK_IN(RAMABLE_REGION)
+
+  .dram0.data :
+  {
+    . = ALIGN (8);
+    __data_start = ABSOLUTE(.);
+    _data_start = ABSOLUTE(.);
+
+    *(.data)
+    *(.data.*)
+    *(.gnu.linkonce.d.*)
+    *(.data1)
+    *(.sdata)
+    *(.sdata.*)
+    *(.gnu.linkonce.s.*)
+    *(.sdata2)
+    *(.sdata2.*)
+    *(.gnu.linkonce.s2.*)
+    /* rodata for panic handler(libarch__xtensa__core.a) and all
+     * dependent functions should be placed in DRAM to avoid issue
+     * when flash cache is disabled */
+    *libarch__xtensa__core.a:(.rodata .rodata.*)
+    *libkernel.a:fatal.*(.rodata .rodata.*)
+    *libkernel.a:init.*(.rodata .rodata.*)
+    *libzephyr.a:cbprintf_complete*(.rodata .rodata.*)
+    *libzephyr.a:systimer_hal.*(.rodata .rodata.*)
+    *libzephyr.a:log_core.*(.rodata .rodata.*)
+    *libzephyr.a:log_backend_uart.*(.rodata .rodata.*)
+    *libzephyr.a:log_output.*(.rodata .rodata.*)
+    *libzephyr.a:loader.*(.rodata .rodata.*)
+    *libdrivers__serial.a:uart_esp32.*(.rodata .rodata.*)
+    *libdrivers__flash.a:flash_esp32.*(.rodata  .rodata.*)
+
+    . = ALIGN(4);
+    #include <snippets-rwdata.ld>
+    . = ALIGN(4);
+
+    KEEP(*(.jcr))
+    *(.dram1 .dram1.*)
+    . = ALIGN(4);
+  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
+  } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
+
+  #include <snippets-data-sections.ld>
+  #include <zephyr/linker/common-ram.ld>
+  #include <snippets-ram-sections.ld>
+  #include <zephyr/linker/cplusplus-ram.ld>
+  #include <zephyr/linker/kobject-data.ld>
+
+  /* logging sections should be placed in RAM area to avoid flash cache disabled issues */
+//  #pragma push_macro("GROUP_ROM_LINK_IN")
+//  #undef GROUP_ROM_LINK_IN
+//  #define GROUP_ROM_LINK_IN GROUP_DATA_LINK_IN
+  #include <zephyr/linker/common-rom/common-rom-logging.ld>
+//  #pragma pop_macro("GROUP_ROM_LINK_IN")
 
   /* SECTION_PROLOGUE(_RODATA_SECTION_NAME,,) */
   .dram0.rodata : ALIGN(4)
@@ -256,8 +313,27 @@ SECTIONS
     #include <snippets-rodata.ld>
 
     . = ALIGN(4);
-    *(EXCLUDE_FILE (*libarch__xtensa__core.a:* *libkernel.a:fatal.* *libkernel.a:init.* *libzephyr.a:cbprintf_complete* *libzephyr.a:log_core.* *libzephyr.a:log_backend_uart.* *libzephyr.a:log_output.* *libzephyr.a:loader.* *libdrivers__serial.a:uart_esp32.*) .rodata)
-    *(EXCLUDE_FILE (*libarch__xtensa__core.a:* *libkernel.a:fatal.* *libkernel.a:init.* *libzephyr.a:cbprintf_complete* *libzephyr.a:log_core.* *libzephyr.a:log_backend_uart.* *libzephyr.a:log_output.* *libzephyr.a:loader.* *libdrivers__serial.a:uart_esp32.*) .rodata.*)
+    *(EXCLUDE_FILE (
+	*libarch__xtensa__core.a:*
+	*libkernel.a:fatal.*
+	*libkernel.a:init.*
+	*libzephyr.a:cbprintf_complete*
+	*libzephyr.a:log_core.*
+	*libzephyr.a:log_backend_uart.*
+	*libzephyr.a:log_output.*
+	*libzephyr.a:loader.*
+	*libdrivers__serial.a:uart_esp32.*) .rodata)
+
+    *(EXCLUDE_FILE (
+	*libarch__xtensa__core.a:*
+	*libkernel.a:fatal.*
+	*libkernel.a:init.*
+	*libzephyr.a:cbprintf_complete*
+	*libzephyr.a:log_core.*
+	*libzephyr.a:log_backend_uart.*
+	*libzephyr.a:log_output.*
+	*libzephyr.a:loader.*
+	*libdrivers__serial.a:uart_esp32.*) .rodata.*)
 
     *(.irom1.text) /* catch stray ICACHE_RODATA_ATTR */
     *(.gnu.linkonce.r.*)
@@ -306,6 +382,8 @@ SECTIONS
   #pragma push_macro("GROUP_ROM_LINK_IN")
   #undef GROUP_ROM_LINK_IN
   #define GROUP_ROM_LINK_IN(vregion, lregion) > RAMABLE_REGION AT > lregion
+  
+  #include <zephyr/linker/cplusplus-rom.ld>
   #include <zephyr/linker/common-rom/common-rom-init.ld>
   #include <zephyr/linker/common-rom/common-rom-kernel-devices.ld>
   #include <zephyr/linker/common-rom/common-rom-ztest.ld>
@@ -313,9 +391,10 @@ SECTIONS
   #include <zephyr/linker/common-rom/common-rom-bt.ld>
   #include <zephyr/linker/common-rom/common-rom-debug.ld>
   #include <zephyr/linker/common-rom/common-rom-misc.ld>
-  #pragma pop_macro("GROUP_ROM_LINK_IN")
+  #include <zephyr/linker/thread-local-storage.ld>
+  #include <snippets-sections.ld>
 
-#include <snippets-sections.ld>
+  #pragma pop_macro("GROUP_ROM_LINK_IN")
 
   /* Create an explicit section at the end of all the data that shall be mapped into drom.
    * This is used to calculate the size of the _image_drom_size variable */
@@ -328,63 +407,10 @@ SECTIONS
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
 
-  .dram0.data :
-  {
-    . = ALIGN (8);
-    __data_start = ABSOLUTE(.);
-
-    *(.data)
-    *(.data.*)
-    *(.gnu.linkonce.d.*)
-    *(.data1)
-    *(.sdata)
-    *(.sdata.*)
-    *(.gnu.linkonce.s.*)
-    *(.sdata2)
-    *(.sdata2.*)
-    *(.gnu.linkonce.s2.*)
-    /* rodata for panic handler(libarch__xtensa__core.a) and all
-     * dependent functions should be placed in DRAM to avoid issue
-     * when flash cache is disabled */
-    *libarch__xtensa__core.a:(.rodata .rodata.*)
-    *libkernel.a:fatal.*(.rodata .rodata.*)
-    *libkernel.a:init.*(.rodata .rodata.*)
-    *libzephyr.a:cbprintf_complete*(.rodata .rodata.*)
-    *libzephyr.a:systimer_hal.*(.rodata .rodata.*)
-    *libzephyr.a:log_core.*(.rodata .rodata.*)
-    *libzephyr.a:log_backend_uart.*(.rodata .rodata.*)
-    *libzephyr.a:log_output.*(.rodata .rodata.*)
-    *libzephyr.a:loader.*(.rodata .rodata.*)
-    *libdrivers__serial.a:uart_esp32.*(.rodata .rodata.*)
-    *libdrivers__flash.a:flash_esp32.*(.rodata  .rodata.*)
-
-    KEEP(*(.jcr))
-    *(.dram1 .dram1.*)
-    . = ALIGN(4);
-  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
-  } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
-
-  #include <zephyr/linker/cplusplus-rom.ld>
-  #include <snippets-data-sections.ld>
-  #include <zephyr/linker/common-ram.ld>
-  #include <snippets-ram-sections.ld>
-  #include <zephyr/linker/cplusplus-ram.ld>
-
-  /* logging sections should be placed in RAM area to avoid flash cache disabled issues */
-  #pragma push_macro("GROUP_ROM_LINK_IN")
-  #undef GROUP_ROM_LINK_IN
-  #define GROUP_ROM_LINK_IN GROUP_DATA_LINK_IN
-  #include <zephyr/linker/common-rom/common-rom-logging.ld>
-  #pragma pop_macro("GROUP_ROM_LINK_IN")
-
   .dram0.end :
   {
-    . = ALIGN(4);
-
-    #include <snippets-rwdata.ld>
-
-    . = ALIGN(4);
     __data_end = ABSOLUTE(.);
+    _data_end = ABSOLUTE(.);
   /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 

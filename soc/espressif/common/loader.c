@@ -222,7 +222,6 @@ void map_rom_segments(uint32_t app_drom_start, uint32_t app_drom_vaddr,
 			"IROM",
 			app_irom_start_aligned, app_irom_vaddr_aligned,
 			app_irom_size, app_irom_size);
-	ets_printf("\n\r");
 	esp_rom_uart_tx_wait_idle(0);
 }
 

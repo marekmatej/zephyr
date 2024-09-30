@@ -73,11 +73,8 @@ else()
   dt_nodelabel(dts_partition_path NODELABEL "slot0_partition")
 endif()
 
-  if(CONFIG_BOOTLOADER_MCUBOOT)
-    board_finalize_runner_args(esp32 "--esp-app-address=${img_0_off}")
-  else()
-    board_finalize_runner_args(esp32 "--esp-app-address=${boot_off}")
-  endif()
+dt_reg_addr(image_off PATH ${dts_partition_path})
+board_finalize_runner_args(esp32 "--esp-app-address=${image_off}")
 
 message("-- Image partition ${dts_partition_path} sizeof ${image_slot_size}")
 

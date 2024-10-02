@@ -95,12 +95,12 @@
 			compatible = "mmio-sram";
 			reg = <0x40370000 DT_SIZE_K(32)>;
 		};
-/*
+
 		sram1_dram: memory@3fc88000 {
 			compatible = "mmio-sram";
 			reg = <0x3fc88000 DT_SIZE_K(319)>;
 		};
-*/
+
 		sram1_iram: memory@40378000 {
 			compatible = "mmio-sram";
 			reg = <0x40378000 DT_SIZE_K(319)>;

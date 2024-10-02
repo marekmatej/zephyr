@@ -43,11 +43,12 @@ void esp_appcpu_start(void *entry_point)
 	}
 
 	esp_rom_ets_set_appcpu_boot_addr((void *)entry_point);
+	esp_cpu_reset(1);
 
-//	ets_delay_us(50000);
+//	ets_delay_us(20000);
 
-	smp_log("ESP32S3: CPU1 start sequence complete");
-	ets_printf("ESP32S3: CPU1 start sequence complete");
+	esp_cpu_unstall(0);
+	smp_log("CPU0: CPU1 start sequence complete");
 }
 
 static int load_segment(uint32_t src_addr, uint32_t src_len, uint32_t dst_addr)
@@ -95,7 +96,7 @@ int esp_appcpu_image_load(unsigned int hdr_offset, unsigned int *entry_addr)
 	const uint32_t *data = (const uint32_t *)sys_mmap(img_off, 0x40);  // sizeof(esp_image_load_header_t));
 
 	memcpy((void *)&mcuboot_header, data, sizeof(mcuboot_header));
-	memcpy((void *)&img_header, data + hdr_offset/sizeof(uint32_t), sizeof(esp_image_load_header_t));
+	memcpy((void *)&img_header, data + (hdr_offset/sizeof(uint32_t)), sizeof(esp_image_load_header_t));
 
 	sys_munmap(data);
 
@@ -167,14 +168,16 @@ void esp_appcpu_image_start(unsigned int hdr_offset)
 
 	ets_printf("Starting APPCPU with entry address 0x%x\n", entry_addr);
 	esp_appcpu_start((void *)entry_addr);
+	esp_cpu_unstall(0);
 }
 
 int esp_start_appcpu(void)
 {
+
 	esp_appcpu_image_start(0x20);
 	return 0;
 }
 #ifndef CONFIG_MCUBOOT
-SYS_INIT(esp_start_appcpu, APPLICATION, 99);
+SYS_INIT(esp_start_appcpu, APPLICATION, 1);
 #endif
 #endif /* CONFIG_SOC_ENABLE_APPCPU */

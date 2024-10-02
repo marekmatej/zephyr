@@ -46,11 +46,6 @@
 /* Set the limit for the application runtime dynamic allocations */
 #define DRAM_RESERVED_START      DRAM_BUFFERS_END
 
-/* Base address used for calculating memory layout
- * counted from Dbus backwards and back to the Ibus
- */
-#define BOOTLOADER_USER_DRAM_END DRAM_BUFFERS_START
-
 /* For safety margin between bootloader data section and startup stacks */
 #define BOOTLOADER_STACK_OVERHEAD      0x0
 #define BOOTLOADER_DRAM_SEG_LEN        0x9000
@@ -76,10 +71,10 @@
  * by the so-called SIMPLE_BOOT.
  */
 #ifdef CONFIG_ESP_SIMPLE_BOOT
-#warning "### USER_DRAM_END - SIMPLE-BOOT"
+#warning "@@@ ### USER_DRAM_END - SIMPLE-BOOT @@@"
 #define USER_DRAM_END BOOTLOADER_USER_DRAM_END
 #else
-#warning "### USER_DRAM_END - MCU-BOOT"
+#warning "@@@ ### USER_DRAM_END - MCUBOOT-APP @@@"
 #define USER_DRAM_END (BOOTLOADER_IRAM_LOADER_SEG_START - IRAM_DRAM_OFFSET)
 #endif
 #define USER_IRAM_END (USER_DRAM_END + IRAM_DRAM_OFFSET)

@@ -47,7 +47,7 @@ void esp_appcpu_start(void *entry_point)
 
 //	ets_delay_us(20000);
 
-	esp_cpu_unstall(0);
+//	esp_cpu_unstall(0);
 	smp_log("CPU0: CPU1 start sequence complete");
 }
 
@@ -68,7 +68,7 @@ static int load_segment(uint32_t src_addr, uint32_t src_len, uint32_t dst_addr)
 
 	sys_munmap(data);
 
-	smp_log("ESP32S3: loaded segment"); //CPU1 start sequence complete");
+	smp_log("ESP32S3: segment loaded"); //CPU1 start sequence complete");
 	return 0;
 }
 
@@ -100,8 +100,8 @@ int esp_appcpu_image_load(unsigned int hdr_offset, unsigned int *entry_addr)
 
 	sys_munmap(data);
 
-	hexdump("appcpu MCUboot hdr:", &mcuboot_header, sizeof(mcuboot_header));
-	hexdump("appcpu ESPmeta hdr:", &img_header, sizeof(esp_image_load_header_t));
+	hexdump("APPCPU MCUboot hdr:", &mcuboot_header, sizeof(mcuboot_header));
+	hexdump("APPCPU ESPmeta hdr:", &img_header, sizeof(esp_image_load_header_t));
 
 	if (img_header.header_magic == ESP_LOAD_HEADER_MAGIC) {
 		ets_printf("MCUboot image format - header magic found\n");
@@ -178,6 +178,6 @@ int esp_start_appcpu(void)
 	return 0;
 }
 #ifndef CONFIG_MCUBOOT
-SYS_INIT(esp_start_appcpu, APPLICATION, 1);
+SYS_INIT(esp_start_appcpu, APPLICATION, 99);
 #endif
 #endif /* CONFIG_SOC_ENABLE_APPCPU */

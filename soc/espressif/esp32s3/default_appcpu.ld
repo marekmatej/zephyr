@@ -14,10 +14,14 @@
 appcpu_iram_end = USER_IRAM_END;
 appcpu_dram_end = USER_DRAM_END;
 
+#if 1
 appcpu_iram_seg_org = appcpu_iram_end - APPCPU_SRAM_SIZE;
-appcpu_iram_seg_len = APPCPU_SRAM_SIZE;
-
 appcpu_dram_seg_org = appcpu_dram_end - APPCPU_SRAM_SIZE;
+#else
+appcpu_iram_seg_org = 0x403b0000; /* appcpu_iram_end - APPCPU_SRAM_SIZE; */
+appcpu_dram_seg_org = 0x3fcc0000; /* appcpu_dram_end - APPCPU_SRAM_SIZE; */
+#endif
+appcpu_iram_seg_len = APPCPU_SRAM_SIZE;
 appcpu_dram_seg_len = APPCPU_SRAM_SIZE;
 
 /* Aliases */

@@ -14,11 +14,17 @@
 procpu_iram_end = USER_IRAM_END - APPCPU_SRAM_SIZE;
 procpu_dram_end = USER_DRAM_END - APPCPU_SRAM_SIZE;
 
+#if 0 //def CONFIG_SOC_ENABLE_APPCPU
+procpu_iram_end = 0x403b0000;
+procpu_dram_end = 0x3fcc0000;
+#endif
+
 #ifdef CONFIG_SOC_ENABLE_APPCPU
 procpu_iram_seg_org = SRAM1_IRAM_START;
 #else
 procpu_iram_seg_org = SRAM0_IRAM_START + CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE;
 #endif
+
 procpu_iram_seg_len = procpu_iram_end - procpu_iram_seg_org;
 
 procpu_dram_seg_org = SRAM1_DRAM_START;
@@ -99,7 +105,6 @@ ENTRY(CONFIG_KERNEL_ENTRY)
 #ifdef CONFIG_SOC_ENABLE_APPCPU
 _heap_sentry = procpu_dram_end;
 #else
-#error
 _heap_sentry = DRAM_RESERVED_START;
 #endif
 

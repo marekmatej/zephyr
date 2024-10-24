@@ -54,63 +54,6 @@
 extern void z_prep_c(void);
 extern void esp_reset_reason_init(void);
 
-#if 0 //def CONFIG_SOC_ENABLE_APPCPU
-
-/* TODO: make this function to parse the image in ESP Image Format
- */
-void IRAM_ATTR esp_app_image_load_xxx(unsigned int *entry_addr)
-{
-	int rc;
-	const struct flash_area *fap;
-	size_t app_base = FIXED_PARTITION_OFFSET(slot0_appcpu_partition);
-	uint8_t fa_id = FIXED_PARTITION_ID(slot0_appcpu_partition);
-ets_printf("slot0_appcpu_partition.base = 0x%x\n", app_base);
-ets_printf("slot0_appcpu_partition.id = 0x%x\n", fa_id);
-	//rc = flash_area_open(fa_id, &fap);
-	//if (rc) {
-	//    ets_printf("%s: flash_area_open failed with %d\n", __func__, rc);
-	//    abort();
-	//}
-return;
-	esp_image_header_t *header = (esp_image_header_t *) app_base; //&esp32s3_appcpu_fw_array[0];
-	esp_image_segment_header_t *segment = (esp_image_segment_header_t *) (app_base+sizeof(esp_image_header_t)); //&esp32s3_appcpu_fw_array[sizeof(esp_image_header_t)];
-	uint8_t *segment_payload;
-//	uint32_t _entry_addr = header->entry_addr;
-	uint32_t idx = sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t);
-
-	for (int i = 0; i < header->segment_count; i++) {
-		segment_payload = (uint8_t *) (app_base+idx); //&esp32s3_appcpu_fw_array[idx];
-
-		if (segment->load_addr >= SOC_IRAM_LOW && segment->load_addr < SOC_IRAM_HIGH) {
-			/* IRAM segment only accepts 4 byte access, avoid memcpy usage here */
-			volatile uint32_t *src = (volatile uint32_t *)segment_payload;
-			volatile uint32_t *dst = (volatile uint32_t *)segment->load_addr;
-
-			for (int i = 0; i < segment->data_len / 4; i++) {
-				dst[i] = src[i];
-			}
-
-		} else if (segment->load_addr >= SOC_DRAM_LOW &&
-			   segment->load_addr < SOC_DRAM_HIGH) {
-			memcpy((void *)segment->load_addr, (const void *)segment_payload,
-			       segment->data_len);
-		}
-
-		idx += segment->data_len;
-		segment = (esp_image_segment_header_t *) (app_base+idx); //&esp32s3_appcpu_fw_array[idx];
-		idx += sizeof(esp_image_segment_header_t);
-	}
-
-//	esp_appcpu_start((void *)_entry_addr);
-
-//	ets_printf("APPCPU entry 0x%x\n", _entry_addr);
-//	if (entry_addr) {
-//		*entry_addr = _entry_addr;
-//	}
-}
-
-#endif /* CONFIG_SOC_ENABLE_APPCPU*/
-
 #ifndef CONFIG_MCUBOOT
 /*
  * This function is a container for SoC patches
@@ -195,11 +138,6 @@ void IRAM_ATTR __esp_platform_start(void)
 	esp_init_psram();
 #endif /* CONFIG_ESP_SPIRAM */
 
-#if 0// CONFIG_SOC_ENABLE_APPCPU
-	/* start the ESP32S3 APP CPU */
-	esp_start_appcpu();
-#endif
-
 #endif /* !CONFIG_MCUBOOT */
 
 	esp_intr_initialize();
@@ -234,14 +172,7 @@ void sys_arch_reboot(int type)
 	esp_restart_noos();
 }
 
-#ifdef CONFIG_SOC_ENABLE_APPCPU
-static int start_appcpu(void)
-{
-//	esp_appcpu_image_start(1, 0, 0x20);
-//	esp_app_image_load_xxx(NULL);
-	ets_printf("%s: APPCPU load done!\n", __func__);
-	return 0;
-}
-
-//SYS_INIT(start_appcpu, APPLICATION, 99);
+#if defined(CONFIG_SOC_ENABLE_APPCPU) && !defined(CONFIG_MCUBOOT)
+extern int esp_appcpu_init(void);
+SYS_INIT(esp_appcpu_init, APPLICATION, 0);
 #endif

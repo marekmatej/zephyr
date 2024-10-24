@@ -74,7 +74,8 @@ void z_irq_spurious(const void *arg)
 	__asm__ volatile("rsr.intenable %0" : "=r"(ie));
 	LOG_ERR(" ** Spurious INTERRUPT(s) %p, INTENABLE = %p",
 		(void *)irqs, (void *)ie);
-	xtensa_fatal_error(K_ERR_SPURIOUS_IRQ, NULL);
+//	xtensa_fatal_error(K_ERR_SPURIOUS_IRQ, NULL);
+	while(1);
 }
 
 int xtensa_irq_is_enabled(unsigned int irq)

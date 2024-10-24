@@ -26,6 +26,8 @@
 #include <xtensa_internal.h>
 #include <xtensa_stack.h>
 
+#include "debugpin.h"
+
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
 extern char xtensa_arch_except_epc[];
@@ -443,7 +445,8 @@ skip_checks:
 		 * as these are software errors.  Should clean this
 		 * up.
 		 */
-		xtensa_fatal_error(reason, (void *)print_stack);
+	//	xtensa_fatal_error(reason, (void *)print_stack);
+		ADBGPIN1();
 		break;
 	}
 

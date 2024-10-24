@@ -7,6 +7,7 @@
 #include <kernel_internal.h>
 #include <zephyr/platform/hooks.h>
 #include <zephyr/arch/cache.h>
+#include "debugpin.h"
 
 extern FUNC_NORETURN void z_cstart(void);
 

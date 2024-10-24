@@ -208,6 +208,9 @@ static int esp_32_ipm_set_enabled(const struct device *dev, int enable)
 
 static int esp32_ipm_init(const struct device *dev)
 {
+#if defined(CONFIG_SOC_ESP32S3_APPCPU)
+	return 0;
+#endif
 	struct esp32_ipm_data *data = (struct esp32_ipm_data *)dev->data;
 	struct esp32_ipm_config *cfg = (struct esp32_ipm_config *)dev->config;
 	int ret;
@@ -216,9 +219,9 @@ static int esp32_ipm_init(const struct device *dev)
 	data->other_core_id = (data->this_core_id  == 0) ? 1 : 0;
 
 	LOG_DBG("Size of IPM shared memory: %d", data->shm_size);
-	LOG_DBG("Address of PRO_CPU IPM shared memory: %p", data->shm.pro_cpu_shm);
-	LOG_DBG("Address of APP_CPU IPM shared memory: %p", data->shm.app_cpu_shm);
-	LOG_DBG("Address of IPM control structure: %p", data->control);
+	LOG_DBG("Address of PRO_CPU IPM shared memory: %p", (void *) data->shm.pro_cpu_shm);
+	LOG_DBG("Address of APP_CPU IPM shared memory: %p", (void *) data->shm.app_cpu_shm);
+	LOG_DBG("Address of IPM control structure: %p", (void *) data->control);
 
 	/* pro_cpu is responsible to initialize the lock of shared memory */
 	if (data->this_core_id == 0) {

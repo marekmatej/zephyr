@@ -11,24 +11,15 @@
 #include "memory.h"
 
 /* User available SRAM memory segments */
-procpu_iram_end = USER_IRAM_END - APPCPU_SRAM_SIZE;
-procpu_dram_end = USER_DRAM_END - APPCPU_SRAM_SIZE;
+amp_total_size = APPCPU_SRAM_TOTAL_SIZE;
+procpu_iram_end = USER_IRAM_END - APPCPU_SRAM_TOTAL_SIZE;
+procpu_dram_end = USER_DRAM_END - APPCPU_SRAM_TOTAL_SIZE;
 
-#if 0 //def CONFIG_SOC_ENABLE_APPCPU
-procpu_iram_end = 0x403b0000;
-procpu_dram_end = 0x3fcc0000;
-#endif
+procpu_iram_org = SRAM_USER_IRAM_START;
+procpu_iram_len = procpu_iram_end - procpu_iram_org;
 
-#ifdef CONFIG_SOC_ENABLE_APPCPU
-procpu_iram_seg_org = SRAM1_IRAM_START;
-#else
-procpu_iram_seg_org = SRAM0_IRAM_START + CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE;
-#endif
-
-procpu_iram_seg_len = procpu_iram_end - procpu_iram_seg_org;
-
-procpu_dram_seg_org = SRAM1_DRAM_START;
-procpu_dram_seg_len = procpu_dram_end - procpu_dram_seg_org;
+procpu_dram_org = SRAM1_DRAM_START;
+procpu_dram_len = procpu_dram_end - procpu_dram_org;
 
 /* Aliases */
 #define FLASH_CODE_REGION  irom0_0_seg
@@ -68,8 +59,8 @@ MEMORY
   FLASH (R):        org = 0x0, len = FLASH_SIZE - 0x100
 #endif /* CONFIG_BOOTLOADER_MCUBOOT */
 
-  iram0_0_seg(RX): org = procpu_iram_seg_org, len = procpu_iram_seg_len
-  dram0_0_seg(RW): org = procpu_dram_seg_org, len = procpu_dram_seg_len
+  iram0_0_seg(RX): org = procpu_iram_org, len = procpu_iram_len
+  dram0_0_seg(RW): org = procpu_dram_org, len = procpu_dram_len
 
   irom0_0_seg(RX): org = IROM_SEG_ORG, len = IROM_SEG_LEN
   drom0_0_seg(R):  org = DROM_SEG_ORG, len = DROM_SEG_LEN
@@ -121,6 +112,7 @@ SECTIONS
     QUAD(0x0)
     QUAD(0x0)
   } > mcuboot_hdr
+  /* Image load table */
   .metadata :
   {
     /* 0. Magic byte for load header */
@@ -279,7 +271,9 @@ SECTIONS
     *(.entry.text)
     *(.init.literal)
     *(.init)
+
     _init_end = ABSOLUTE(.);
+
   } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 
   .iram0.text : ALIGN(4)

@@ -53,6 +53,7 @@
 
 extern void z_prep_c(void);
 extern void esp_reset_reason_init(void);
+extern int esp_appcpu_init(void);
 
 #ifndef CONFIG_MCUBOOT
 /*
@@ -174,5 +175,5 @@ void sys_arch_reboot(int type)
 
 #if defined(CONFIG_SOC_ENABLE_APPCPU) && !defined(CONFIG_MCUBOOT)
 extern int esp_appcpu_init(void);
-SYS_INIT(esp_appcpu_init, APPLICATION, 0);
+SYS_INIT(esp_appcpu_init, APPLICATION, 99);
 #endif

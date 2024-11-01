@@ -1,14 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 if (CONFIG_SOC_ESP32S3_APPCPU)
-  zephyr_sources(soc_appcpu.c)
+
+  zephyr_sources(
+    soc_appcpu.c
+    )
+
 else()
+
   zephyr_sources(
     soc.c
     soc_cache.c
     esp32s3-mp.c
     ../common/loader.c
     )
+
 endif()
 
 zephyr_include_directories(.)
@@ -60,16 +66,12 @@ endif()
 
 # Select the image origin depending on the boot configuration
 if(CONFIG_SOC_ESP32S3_APPCPU)
-  message("### APPCPU APP ###")
   dt_nodelabel(dts_partition_path NODELABEL "slot0_appcpu_partition")
 elseif(CONFIG_MCUBOOT)
-  message("### MCUBOOT ###")
   dt_nodelabel(dts_partition_path NODELABEL "boot_partition")
 elseif(CONFIG_ESP_SIMPLE_BOOT)
-  message("### SIMPLEBOOT ###")
   dt_nodelabel(dts_partition_path NODELABEL "boot_partition")
 else()
-  message("### PROCPU APP ###")
   dt_nodelabel(dts_partition_path NODELABEL "slot0_partition")
 endif()
 
@@ -95,12 +97,9 @@ if(CONFIG_MCUBOOT)
 endif()
 
 if(CONFIG_MCUBOOT)
-	message("################## mcuboot.ld")
   set(SOC_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/mcuboot.ld CACHE INTERNAL "")
 elseif(CONFIG_SOC_ESP32S3_APPCPU)
-	message("################## default_appcpu.ld")
   set(SOC_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/default_appcpu.ld CACHE INTERNAL "")
 else()
-	message("################## default.ld")
   set(SOC_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/default.ld CACHE INTERNAL "")
 endif()

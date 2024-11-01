@@ -14,15 +14,11 @@
 appcpu_iram_end = USER_IRAM_END;
 appcpu_dram_end = USER_DRAM_END;
 
-#if 1
-appcpu_iram_seg_org = appcpu_iram_end - APPCPU_SRAM_SIZE;
-appcpu_dram_seg_org = appcpu_dram_end - APPCPU_SRAM_SIZE;
-#else
-appcpu_iram_seg_org = 0x403b0000; /* appcpu_iram_end - APPCPU_SRAM_SIZE; */
-appcpu_dram_seg_org = 0x3fcc0000; /* appcpu_dram_end - APPCPU_SRAM_SIZE; */
-#endif
-appcpu_iram_seg_len = APPCPU_SRAM_SIZE;
-appcpu_dram_seg_len = APPCPU_SRAM_SIZE;
+appcpu_iram_org = appcpu_iram_end - APPCPU_SRAM_SIZE;
+appcpu_dram_org = appcpu_dram_end - APPCPU_SRAM_SIZE;
+
+appcpu_iram_len = APPCPU_SRAM_SIZE;
+appcpu_dram_len = APPCPU_SRAM_SIZE;
 
 /* Aliases */
 #define ROMABLE_REGION   FLASH
@@ -61,8 +57,8 @@ MEMORY
   FLASH (R):        org = 0x0, len = FLASH_SIZE - 0x100
 #endif /* CONFIG_BOOTLOADER_MCUBOOT */
 
-  iram0_1_seg(RX): org = appcpu_iram_seg_org, len = appcpu_iram_seg_len
-  dram0_1_seg(RW): org = appcpu_dram_seg_org, len = appcpu_dram_seg_len
+  iram0_1_seg(RX): org = appcpu_iram_org, len = appcpu_iram_len
+  dram0_1_seg(RW): org = appcpu_dram_org, len = appcpu_dram_len
 
 #ifdef CONFIG_GEN_ISR_TABLES
   IDT_LIST(RW): org = 0x3ebfe010, len = 0x2000
@@ -77,7 +73,7 @@ _heap_sentry = DRAM_RESERVED_START;
 
 SECTIONS
 {
-#ifdef CONFIG_BOOTLOADER_MCUBOOT
+#if defined(CONFIG_BOOTLOADER_MCUBOOT) || defined(CONFIG_BOOTLOADER_MCUBOOT_ESPRESSIF)
   /* Reserve space for MCUboot header in the binary */
   .mcuboot_header :
   {
@@ -86,6 +82,7 @@ SECTIONS
     QUAD(0x0)
     QUAD(0x0)
   } > mcuboot_hdr
+  /* Image load table */
   .metadata :
   {
     /* 0. Magic byte for load header */
@@ -112,7 +109,7 @@ SECTIONS
     LONG(LOADADDR(.dram0.data))
     LONG(_data_end - _data_start)
   } > metadata
-#endif /* CONFIG_BOOTLOADER_MCUBOOT */
+#endif /* CONFIG_BOOTLOADER_MCUBOOT || CONFIG_BOOTLOADER_MCUBOOT_ESPRESSIF */
 
   #include <zephyr/linker/rel-sections.ld>
 
@@ -125,6 +122,7 @@ SECTIONS
   /* Send .iram0 code to iram */
   .iram0.vectors : ALIGN(4)
   {
+    _iram_start = ABSOLUTE(.);
     /* Vectors go to IRAM */
     _init_start = ABSOLUTE(.);
     /* Vectors according to builds/RF-2015.2-win32/esp108_v1_2_s5_512int_2/config.html */
@@ -158,16 +156,14 @@ SECTIONS
     *(.entry.text)
     *(.init.literal)
     *(.init)
-	. = ALIGN (4);
-    _init_end = ABSOLUTE(.);
+    . = ALIGN (16);
 
-    _iram_start = ABSOLUTE(.);
+    _init_end = ABSOLUTE(.);
 
   } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 
   .iram0.text : ALIGN(4)
   {
-    /* Code marked as running out of IRAM */
     _iram_text_start = ABSOLUTE(.);
     *(.iram1 .iram1.*)
     *(.iram0.literal .iram.literal .iram.text.literal .iram0.text .iram.text)
@@ -198,9 +194,7 @@ SECTIONS
     *libphy.a:(.phyiram .phyiram.*)
     *libgcov.a:(.literal .text .literal.* .text.*)
 
-    //. = ALIGN(4);
-//    _iram_end = ABSOLUTE(.);
-    . = ALIGN(4) + 16;
+    . = ALIGN(16);
 
   } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 
@@ -233,12 +227,10 @@ SECTIONS
     . = ALIGN(4);
     _flash_cache_start = ABSOLUTE(0);
 
-    . = ALIGN(4) + 16;
+    . = ALIGN(4);
     _iram_end = ABSOLUTE(.);
-  /* } GROUP_LINK_IN(IRAM_REGION) */
-  } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
-/*  } GROUP_DATA_LINK_IN(FLASH_CODE_REGION, ROMABLE_REGION) */
 
+  } GROUP_DATA_LINK_IN(IRAM_REGION, ROMABLE_REGION)
 
   /* --- END OF IRAM --- */
 
@@ -246,8 +238,8 @@ SECTIONS
 
   .dram0.dummy (NOLOAD):
   {
-    . = ORIGIN(dram0_1_seg) + MAX(_iram_end, appcpu_iram_seg_org) - appcpu_iram_seg_org;
-    . = ALIGN(4);
+    . = ORIGIN(dram0_1_seg) + MAX(_iram_end, appcpu_iram_org) - appcpu_iram_org;
+    . = ALIGN(16);
   } GROUP_LINK_IN(RAMABLE_REGION)
 
   .dram0.data :
@@ -287,8 +279,8 @@ SECTIONS
 
     KEEP(*(.jcr))
     *(.dram1 .dram1.*)
-    . = ALIGN(4);
-  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
+    . = ALIGN(16);
+
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
   #include <snippets-data-sections.ld>
@@ -296,13 +288,7 @@ SECTIONS
   #include <snippets-ram-sections.ld>
   #include <zephyr/linker/cplusplus-ram.ld>
   #include <zephyr/linker/kobject-data.ld>
-
-  /* logging sections should be placed in RAM area to avoid flash cache disabled issues */
-//  #pragma push_macro("GROUP_ROM_LINK_IN")
-//  #undef GROUP_ROM_LINK_IN
-//  #define GROUP_ROM_LINK_IN GROUP_DATA_LINK_IN
   #include <zephyr/linker/common-rom/common-rom-logging.ld>
-//  #pragma pop_macro("GROUP_ROM_LINK_IN")
 
   /* SECTION_PROLOGUE(_RODATA_SECTION_NAME,,) */
   .dram0.rodata : ALIGN(4)
@@ -338,6 +324,8 @@ SECTIONS
 	*libzephyr.a:log_output.*
 	*libzephyr.a:loader.*
 	*libdrivers__serial.a:uart_esp32.*) .rodata.*)
+
+    . = ALIGN(4);
 
     *(.irom1.text) /* catch stray ICACHE_RODATA_ATTR */
     *(.gnu.linkonce.r.*)
@@ -407,7 +395,6 @@ SECTIONS
   {
     . = ALIGN(16);
     _image_rodata_end = ABSOLUTE(.);
-  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
 
@@ -415,10 +402,8 @@ SECTIONS
   {
     __data_end = ABSOLUTE(.);
     _data_end = ABSOLUTE(.);
-  /* } GROUP_DATA_LINK_IN(RAMABLE_REGION, IRAM_REGION) */
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
-  /* SECTION_DATA_PROLOGUE(_NOINIT_SECTION_NAME, (NOLOAD),) */
   .dram0.noinit (NOLOAD):
   {
     . = ALIGN(8);
@@ -428,7 +413,6 @@ SECTIONS
   } GROUP_LINK_IN(RAMABLE_REGION)
 
   /* Shared RAM */
-  /* SECTION_DATA_PROLOGUE(_BSS_SECTION_NAME,(NOLOAD),) */
   .dram0.bss (NOLOAD) :
   {
     . = ALIGN (8);

@@ -22,8 +22,7 @@ config ESP32S3_APPCPU_DRAM_SIZE
 config SOC_ENABLE_APPCPU
 	bool "Utilize CPU1 of ESP32S3"
 	default y
-	depends on (IPM || MCUBOOT) && SOC_ESP32S3_PROCPU
-#	depends on (MBOX || MCUBOOT) && SOC_ESP32S3_PROCPU
+	depends on (IPM || MBOX) && SOC_ESP32S3_PROCPU
 	help
 	  This hidden configuration lets PROCPU core to map and start APPCPU whenever IPM is enabled.
 

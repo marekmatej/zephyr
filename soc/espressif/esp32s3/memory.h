@@ -7,17 +7,16 @@
 /* SRAM0 (32k), SRAM1 (416k), SRAM2 (64k) memories
  * Ibus and Dbus address space
  */
-#define SRAM0_IRAM_START    0x40370000
-#define SRAM0_SIZE          0x8000
-#define SRAM1_DRAM_START    0x3fc88000
-/* IRAM equivalent address where DRAM actually start */
-#define SRAM1_IRAM_START    (SRAM0_IRAM_START + SRAM0_SIZE)
+#define SRAM0_IRAM_START      0x40370000
+#define SRAM0_SIZE            0x8000
+#define SRAM1_DRAM_START      0x3fc88000
+#define SRAM1_IRAM_START      0x40378000
+#define SRAM_USER_IRAM_START  (SRAM0_IRAM_START + CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE)
 
 #define SRAM2_DRAM_START      0x3fcf0000
 #define SRAM2_SIZE            0x10000
 #define SRAM2_USER_DRAM_START (SRAM2_DRAM_START + CONFIG_ESP32S3_DATA_CACHE_SIZE)
 #define SRAM2_USER_DRAM_SIZE  (SRAM2_SIZE - CONFIG_ESP32S3_DATA_CACHE_SIZE)
-
 
 /** Simplified memory map for the bootloader.
  *  Make sure the bootloader can load into main memory without overwriting itself.
@@ -48,7 +47,7 @@
 
 /* For safety margin between bootloader data section and startup stacks */
 #define BOOTLOADER_STACK_OVERHEAD      0x0
-#define BOOTLOADER_DRAM_SEG_LEN        0x9000
+#define BOOTLOADER_DRAM_SEG_LEN        0x15000
 #define BOOTLOADER_IRAM_LOADER_SEG_LEN 0x1a00
 #define BOOTLOADER_IRAM_SEG_LEN        0xc000
 
@@ -81,15 +80,17 @@
 
 /* AMP */
 #if defined(CONFIG_SOC_ENABLE_APPCPU) || defined(CONFIG_SOC_ESP32S3_APPCPU)
-#define APPCPU_IRAM_SIZE  CONFIG_ESP32S3_APPCPU_IRAM_SIZE
-#define APPCPU_DRAM_SIZE  CONFIG_ESP32S3_APPCPU_DRAM_SIZE
-#define APPCPU_SAFETY_GAP 0x4000
+#define APPCPU_IRAM_SIZE CONFIG_ESP32S3_APPCPU_IRAM_SIZE
+#define APPCPU_DRAM_SIZE CONFIG_ESP32S3_APPCPU_DRAM_SIZE
+#define AMP_COMM_SIZE    (0x4000 + 0x400)
 #else
-#define APPCPU_IRAM_SIZE  0
-#define APPCPU_DRAM_SIZE  0
-#define APPCPU_SAFETY_GAP 0
+#define APPCPU_IRAM_SIZE 0
+#define APPCPU_DRAM_SIZE 0
+#define AMP_COMM_SIZE    0
 #endif
-#define APPCPU_SRAM_SIZE ((APPCPU_IRAM_SIZE + APPCPU_DRAM_SIZE) - APPCPU_SAFETY_GAP)
+
+#define APPCPU_SRAM_SIZE (APPCPU_IRAM_SIZE + APPCPU_DRAM_SIZE)
+#define APPCPU_SRAM_TOTAL_SIZE (APPCPU_SRAM_SIZE + AMP_COMM_SIZE)
 
 /* Flash */
 #ifdef CONFIG_FLASH_SIZE

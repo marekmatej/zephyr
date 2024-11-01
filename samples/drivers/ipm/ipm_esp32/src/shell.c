@@ -29,22 +29,35 @@
 	("<cmd>\n\n" \
 	 "Start the APPCPU")
 
-void esp_appcpu_image_start(int img_index, int slot, unsigned int hdr_offset);
+#define STOP_HELP \
+	("<cmd>\n\n" \
+	 "Stop the APPCPU")
+
+void esp_appcpu_image_start(unsigned int hdr_offset);
+void esp_appcpu_image_stop(void);
 
 static int cmd_appcpu_start(const struct shell *shell, size_t argc, char **argv)
 {
 	printk("start appcpu\n");
 
-	//start_cpu1_image(1, 0, 0x20);
-	esp_appcpu_image_start(1, 0, 0x20);
+	esp_appcpu_image_start(0x20);
 
 	return 0;
 }
 
+static int cmd_appcpu_stop(const struct shell *shell, size_t argc, char **argv)
+{
+	printk("stop appcpu\n");
+
+	esp_appcpu_image_stop();
+
+	return 0;
+}
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_amp,
 	/* Alphabetically sorted to ensure correct Tab autocompletion. */
 	SHELL_CMD_ARG(appstart,	NULL,	START_HELP,	cmd_appcpu_start, 1, 0),
+	SHELL_CMD_ARG(appstop,	NULL,	STOP_HELP,	cmd_appcpu_stop, 1, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 

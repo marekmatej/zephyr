@@ -4,13 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <stdio.h>
 #include <zephyr/kernel.h>
+#include <zephyr/device.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/ipm.h>
-#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
 
 static const struct device *ipm_dev;
-static const char fake_resp[] = {"APP_CPU: This is a response"};
+static char resp[64];
+static uint32_t msg_cnt;
 struct k_sem sync;
 
 static void ipm_receive_callback(const struct device *ipmdev, void *user_data,
@@ -21,6 +24,8 @@ static void ipm_receive_callback(const struct device *ipmdev, void *user_data,
 
 int main(void)
 {
+	int ret;
+
 	k_sem_init(&sync, 0, 1);
 
 	ipm_dev = DEVICE_DT_GET(DT_NODELABEL(ipm0));
@@ -31,13 +36,15 @@ int main(void)
 
 	ipm_register_callback(ipm_dev, ipm_receive_callback, NULL);
 
-	int i = 0;
-
 	while (1) {
-		k_msleep(1000);
-//		printk("kokot%d\n", i++);
-		k_sem_take(&sync, K_FOREVER);
-		ipm_send(ipm_dev, -1, sizeof(fake_resp), &fake_resp, sizeof(fake_resp));
+		ret = snprintf(resp, sizeof(resp), "Response id %i\n", ++msg_cnt);
+		if (ret < 0) {
+			continue;
+		} else {
+			k_sem_take(&sync, K_FOREVER);
+			ipm_send(ipm_dev, -1, sizeof(resp), &resp, sizeof(resp));
+		}
 	}
+
 	return 0;
 }

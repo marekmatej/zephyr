@@ -208,9 +208,6 @@ static int esp_32_ipm_set_enabled(const struct device *dev, int enable)
 
 static int esp32_ipm_init(const struct device *dev)
 {
-#if defined(CONFIG_SOC_ESP32S3_APPCPU)
-	return 0;
-#endif
 	struct esp32_ipm_data *data = (struct esp32_ipm_data *)dev->data;
 	struct esp32_ipm_config *cfg = (struct esp32_ipm_config *)dev->config;
 	int ret;
